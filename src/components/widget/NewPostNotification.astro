@@ -71,7 +71,7 @@ import { Icon } from "astro-icon/components";
                     </button>
                 </div>
             </div>
-            <div id="new-post-list" class="text-sm text-black/80 dark:text-white/80 transition-colors space-y-3 flex-1 overflow-y-auto overflow-x-hidden"></div>
+            <div id="new-post-list" class="text-sm text-black/80 dark:text-white/80 transition-colors space-y-1 flex-1 overflow-y-auto overflow-x-hidden"></div>
         </div>
     </div>
     <span id="notification-dot" class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-[var(--card-bg)] animate-pulse pointer-events-none transform translate-y-20 opacity-0 scale-0 transition-all duration-260 ease-out"></span>
@@ -391,8 +391,8 @@ import { Icon } from "astro-icon/components";
             postHref = withBasePath(postHref);
 
             html += `
-            <div class="mb-4 last:mb-0">
-                <div class="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--primary)]/5 transition-colors">
+            <div>
+                <div class="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--primary)]/5 transition-colors">
                     <a href="${postHref}" class="font-medium truncate pr-2 hover:text-[var(--primary)] transition-colors text-black dark:text-white block flex-1">
                         ${post.title}
                     </a>
