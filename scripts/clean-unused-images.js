@@ -171,6 +171,12 @@ async function cleanUnusedImages() {
 	const markdownFiles = await getAllMarkdownFiles();
 	const imageFiles = await getAllImageFiles();
 
+	if (markdownFiles.length === 0) {
+		console.error("No markdown files found. Abort to avoid accidental image deletion.");
+		return;
+	}
+
+
 	console.log(`📄 找到 ${markdownFiles.length} 个 markdown 文件`);
 	console.log(`🖼️  找到 ${imageFiles.length} 个图片文件`);
 
