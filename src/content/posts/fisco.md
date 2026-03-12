@@ -1,5 +1,5 @@
 ---
-title: FISCO+WeBase 私有区块链基建
+title: FISCO+WeBase 私有区块链基建（在线）
 published: 2026-03-11T17:23:10
 description: 区块链比赛内部文档
 image: ../assets/images/fisco.png
