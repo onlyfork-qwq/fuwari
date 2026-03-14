@@ -248,15 +248,15 @@ const bannerOffset =
 		<link rel="alternate" type="application/rss+xml" title={profileConfig.name} href={`${Astro.site}rss.xml`}/>
 
 <!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+<script type="text/plain">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-P8V8663M');</script>
 <!-- End Google Tag Manager -->
-<script async src="https://fundingchoicesmessages.google.com/i/pub-1683686345039700?ers=1"></script><script>(function() {function signalGooglefcPresent() {if (!window.frames['googlefcPresent']) {if (document.body) {const iframe = document.createElement('iframe'); iframe.style = 'width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;'; iframe.style.display = 'none'; iframe.name = 'googlefcPresent'; document.body.appendChild(iframe);} else {setTimeout(signalGooglefcPresent, 0);}}}signalGooglefcPresent();})();</script>
+<script type="text/plain" async src="https://fundingchoicesmessages.google.com/i/pub-1683686345039700?ers=1"></script><script type="text/plain">(function() {function signalGooglefcPresent() {if (!window.frames['googlefcPresent']) {if (document.body) {const iframe = document.createElement('iframe'); iframe.style = 'width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;'; iframe.style.display = 'none'; iframe.name = 'googlefcPresent'; document.body.appendChild(iframe);} else {setTimeout(signalGooglefcPresent, 0);}}}signalGooglefcPresent();})();</script>
 
-<script>(function(){'use strict';function aa(a){var b=0;return function(){return b<a.length?{done:!1,value:a[b++]}:{done:!0}}}var ba=typeof Object.defineProperties=="function"?Object.defineProperty:function(a,b,c){if(a==Array.prototype||a==Object.prototype)return a;a[b]=c.value;return a};
+<script type="text/plain">(function(){'use strict';function aa(a){var b=0;return function(){return b<a.length?{done:!1,value:a[b++]}:{done:!0}}}var ba=typeof Object.defineProperties=="function"?Object.defineProperty:function(a,b,c){if(a==Array.prototype||a==Object.prototype)return a;a[b]=c.value;return a};
 function ca(a){a=["object"==typeof globalThis&&globalThis,a,"object"==typeof window&&window,"object"==typeof self&&self,"object"==typeof global&&global];for(var b=0;b<a.length;++b){var c=a[b];if(c&&c.Math==Math)return c}throw Error("Cannot find global object");}var da=ca(this);function l(a,b){if(b)a:{var c=da;a=a.split(".");for(var d=0;d<a.length-1;d++){var e=a[d];if(!(e in c))break a;c=c[e]}a=a[a.length-1];d=c[a];b=b(d);b!=d&&b!=null&&ba(c,a,{configurable:!0,writable:!0,value:b})}}
 function ea(a){return a.raw=a}function n(a){var b=typeof Symbol!="undefined"&&Symbol.iterator&&a[Symbol.iterator];if(b)return b.call(a);if(typeof a.length=="number")return{next:aa(a)};throw Error(String(a)+" is not an iterable or ArrayLike");}function fa(a){for(var b,c=[];!(b=a.next()).done;)c.push(b.value);return c}var ha=typeof Object.create=="function"?Object.create:function(a){function b(){}b.prototype=a;return new b},p;
 if(typeof Object.setPrototypeOf=="function")p=Object.setPrototypeOf;else{var q;a:{var ja={a:!0},ka={};try{ka.__proto__=ja;q=ka.a;break a}catch(a){}q=!1}p=q?function(a,b){a.__proto__=b;if(a.__proto__!==b)throw new TypeError(a+" is not extensible");return a}:null}var la=p;
@@ -434,17 +434,69 @@ var _hmt = _hmt || [];
 </script>
 
 
-<!-- Google Analytics -->
-<!-- Google tag (gtag.js) -->
-<script data-swup-ignore-script async src="https://www.googletagmanager.com/gtag/js?id=G-RBZVQJCV26"></script>
 <script data-swup-ignore-script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-RBZVQJCV26');
+(function() {
+	if (window.__googleThirdPartyDeferredLoaded) return;
+	const loadScript = (src, attrs = {}) => {
+		const script = document.createElement("script");
+		script.src = src;
+		script.async = true;
+		Object.entries(attrs).forEach(([key, value]) => {
+			if (value === true) {
+				script.setAttribute(key, "");
+				return;
+			}
+			if (value !== false && value != null) {
+				script.setAttribute(key, String(value));
+			}
+		});
+		const firstScript = document.getElementsByTagName("script")[0];
+		if (firstScript?.parentNode) {
+			firstScript.parentNode.insertBefore(script, firstScript);
+		} else {
+			document.head.appendChild(script);
+		}
+		return script;
+	};
+	const run = () => {
+		if (window.__googleThirdPartyDeferredLoaded) return;
+		window.__googleThirdPartyDeferredLoaded = true;
+		window.dataLayer = window.dataLayer || [];
+		window.dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+		loadScript("https://www.googletagmanager.com/gtm.js?id=GTM-P8V8663M", { "data-swup-ignore-script": true });
+		loadScript("https://www.googletagmanager.com/gtag/js?id=G-RBZVQJCV26", { "data-swup-ignore-script": true });
+		window.gtag = window.gtag || function() { window.dataLayer.push(arguments); };
+		window.gtag("js", new Date());
+		window.gtag("config", "G-RBZVQJCV26");
+		loadScript("https://fundingchoicesmessages.google.com/i/pub-1683686345039700?ers=1");
+		loadScript("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1683686345039700", { crossorigin: "anonymous" });
+		(function signalGooglefcPresent() {
+			if (window.frames["googlefcPresent"]) return;
+			if (!document.body) {
+				setTimeout(signalGooglefcPresent, 0);
+				return;
+			}
+			const iframe = document.createElement("iframe");
+			iframe.style = "width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;";
+			iframe.style.display = "none";
+			iframe.name = "googlefcPresent";
+			document.body.appendChild(iframe);
+		})();
+	};
+	const schedule = () => {
+		if ("requestIdleCallback" in window) {
+			window.requestIdleCallback(run, { timeout: 4000 });
+			return;
+		}
+		setTimeout(run, 1200);
+	};
+	if (document.readyState === "complete") {
+		schedule();
+		return;
+	}
+	window.addEventListener("load", schedule, { once: true });
+})();
 </script>
-<!-- end of Google Analytics-->
 
 <!-- Microsoft Clarity -->
 		<script type="text/plain" data-cookie-consent="tracking" data-swup-ignore-script>
@@ -457,7 +509,7 @@ var _hmt = _hmt || [];
 <!-- end of Site Experience & Interaction Analytics-->
 
 <!-- Google Adsense -->
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1683686345039700"
+<script type="text/plain" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1683686345039700"
      crossorigin="anonymous"></script>
 <!-- end of Google Adsense-->
 
