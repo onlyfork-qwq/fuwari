@@ -177,6 +177,7 @@ export default defineConfig({
 			status: 302,
 			destination:
 				"https://acofork.notion.site/2e11e011d4e5800fa050e8f7cf448347",
+		},
 		"/iku": {
 			status: 302,
 			destination: "https://ikuuu.de/",
