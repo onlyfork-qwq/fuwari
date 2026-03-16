@@ -1,8 +1,14 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
+import { addCollection } from "@iconify/svelte";
+import materialSymbols from "@iconify-json/material-symbols/icons.json";
+import fa6Solid from "@iconify-json/fa6-solid/icons.json";
 import { url } from "@utils/url-utils.ts";
 import { onMount } from "svelte";
 import Highlight from "./Highlight.svelte";
+
+addCollection(materialSymbols);
+addCollection(fa6Solid);
 
 interface SearchResult {
 	url: string;
