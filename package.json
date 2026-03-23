@@ -12,7 +12,7 @@
 		"astro": "astro",
 		"type-check": "tsc --noEmit --isolatedDeclarations",
 		"new-post": "node scripts/new-post.js",
-		"new-post-commit": "node scripts/new-post-commit.js",
+		"post-commit": "node scripts/post-commit.js",
 		"clean": "node scripts/clean-unused-images.js",
 		"imgf": "node scripts/imgf.js",
 		"del-space": "node scripts/del-space.js",
