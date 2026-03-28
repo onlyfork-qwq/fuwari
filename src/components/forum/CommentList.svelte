@@ -77,7 +77,7 @@
 						uploadPostId={postId}
 						placeholder="写下你的回复（支持 Markdown）"
 						submitting={submittingReply}
-						minHeight={140}
+						minHeight={200}
 						submitHint="Ctrl/Cmd + Enter 提交，Esc 收起"
 						on:change={(event) => onReplyContentChange(event.detail.value)}
 						on:submit={() => onReplySubmit(comment)}

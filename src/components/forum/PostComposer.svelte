@@ -231,7 +231,7 @@
 				uploadType="post"
 				placeholder="写点什么吧，支持 Markdown 语法..."
 				submitting={submitting || (mode === "edit" && permissionChecked && !canSubmit)}
-				minHeight={320}
+				minHeight={420}
 				submitHint={editorSubmitHint}
 				on:submit={submit}
 			/>

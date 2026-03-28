@@ -29,7 +29,7 @@
 	export let uploadType: Exclude<ForumUploadType, "avatar"> | undefined = undefined;
 	export let uploadPostId = "";
 	export let submitHint = "Ctrl/Cmd + Enter 提交";
-	export let minHeight = 160;
+	export let minHeight = 220;
 	export let shellClass = "";
 
 	const dispatch = createEventDispatcher<{

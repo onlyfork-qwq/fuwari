@@ -24,6 +24,14 @@ interface CommentLikeResult {
 	like_count?: number;
 }
 
+export type CommentSortBy = "likes" | "time";
+export type CommentSortDir = "asc" | "desc";
+
+export interface CommentListQuery {
+	sortBy?: CommentSortBy;
+	sortDir?: CommentSortDir;
+}
+
 function normalizeComment(comment: RawCommentRecord): ForumComment {
 	return {
 		id: String(comment.id),
@@ -47,8 +55,13 @@ function normalizeComment(comment: RawCommentRecord): ForumComment {
 	};
 }
 
-export async function getComments(postId: string) {
-	const result = await forumRequest<RawCommentRecord[]>(`/api/posts/${postId}/comments`);
+export async function getComments(postId: string, query: CommentListQuery = {}) {
+	const result = await forumRequest<RawCommentRecord[]>(`/api/posts/${postId}/comments`, {
+		query: {
+			sort_by: query.sortBy,
+			sort_dir: query.sortDir,
+		},
+	});
 	return result.map(normalizeComment);
 }
 

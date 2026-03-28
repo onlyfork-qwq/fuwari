@@ -5,7 +5,7 @@
 	import CommentList from "@/components/forum/CommentList.svelte";
 	import ForumMarkdownContent from "@/components/forum/ForumMarkdownContent.svelte";
 	import ForumMarkdownEditor from "@/components/forum/ForumMarkdownEditor.svelte";
-	import { createComment, getComments } from "@/forum/api/comments";
+	import { createComment, getComments, type CommentListQuery } from "@/forum/api/comments";
 	import { getSession } from "@/forum/api/auth";
 	import { getPost, likePost } from "@/forum/api/posts";
 	import { forumAuth } from "@/forum/stores/auth";
@@ -32,6 +32,12 @@
 	let currentUser: ForumUser | null = null;
 	let authReady = false;
 	let canEditPost = false;
+	const commentSortOptions = [
+		{ value: "hot", label: "最热" },
+		{ value: "oldest", label: "最早" },
+		{ value: "latest", label: "最新" },
+	] as const;
+	let commentSort = "hot";
 
 	function formatDate(value?: string) {
 		if (!value) return "刚刚";
@@ -41,6 +47,18 @@
 	function refreshCommentCount() {
 		if (!post) return;
 		post = { ...post, commentCount: comments.length };
+	}
+
+	function getCommentSortQuery(sort: string): CommentListQuery {
+		switch (sort) {
+			case "oldest":
+				return { sortBy: "time", sortDir: "asc" };
+			case "latest":
+				return { sortBy: "time", sortDir: "desc" };
+			case "hot":
+			default:
+				return { sortBy: "likes", sortDir: "desc" };
+		}
 	}
 
 	function patchCommentInTree(list: ForumComment[], commentId: string, patch: Partial<ForumComment>) {
@@ -79,7 +97,7 @@
 	async function loadComments() {
 		commentsLoading = true;
 		try {
-			comments = await getComments(postId);
+			comments = await getComments(postId, getCommentSortQuery(commentSort));
 			refreshCommentCount();
 		} catch (error) {
 			console.error(error);
@@ -87,6 +105,14 @@
 		} finally {
 			commentsLoading = false;
 		}
+	}
+
+	function changeCommentSort(nextSort: string) {
+		if (commentSort === nextSort || commentsLoading) {
+			return;
+		}
+		commentSort = nextSort;
+		void loadComments();
 	}
 
 	async function toggleLike() {
@@ -291,13 +317,28 @@
 		</article>
 		<section class="space-y-4">
 			<div class="card-base border border-white/10 p-4 md:p-5">
-				<div class="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
 					<h2 class="text-xl font-bold text-white">评论</h2>
-					<span class="text-sm text-white/35">{comments.length} 条</span>
+					<div class="flex items-center gap-3">
+						<label class="flex items-center gap-2 text-sm text-white/45">
+							<span>排序</span>
+							<select
+								value={commentSort}
+								class="forum-select rounded-xl border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-[var(--primary)] disabled:opacity-60"
+								disabled={commentsLoading}
+								on:change={(event) => changeCommentSort((event.currentTarget as HTMLSelectElement).value)}
+							>
+								{#each commentSortOptions as option}
+									<option value={option.value}>{option.label}</option>
+								{/each}
+							</select>
+						</label>
+						<span class="text-sm text-white/35">{comments.length} 条</span>
+					</div>
 				</div>
 				{#if hasToken}
 					<div class="space-y-3">
-						<ForumMarkdownEditor bind:value={commentContent} mode="comment" uploadType="comment" uploadPostId={postId} placeholder="写下你的评论（支持 Markdown）" submitting={commentSubmitting} minHeight={180} submitHint="Ctrl/Cmd + Enter 提交评论" on:submit={() => submitComment()} />
+						<ForumMarkdownEditor bind:value={commentContent} mode="comment" uploadType="comment" uploadPostId={postId} placeholder="写下你的评论（支持 Markdown）" submitting={commentSubmitting} minHeight={260} submitHint="Ctrl/Cmd + Enter 提交评论" on:submit={() => submitComment()} />
 						<div class="flex items-center justify-between gap-3">
 							{#if commentStatus}
 								<p class="text-sm text-white/45">{commentStatus}</p>
