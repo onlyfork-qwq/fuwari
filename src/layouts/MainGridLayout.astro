@@ -15,6 +15,7 @@ import {
 	MAIN_PANEL_OVERLAPS_BANNER_HEIGHT,
 } from "../constants/constants";
 import Layout from "./Layout.astro";
+import { pathsEqual, url } from "@/utils/url-utils";
 
 interface Props {
 	title?: string;
@@ -40,6 +41,10 @@ const hasBannerLink = !!siteConfig.banner.credit.url;
 const mainPanelTop = siteConfig.banner.enable
 	? `calc(${BANNER_HEIGHT}vh - ${MAIN_PANEL_OVERLAPS_BANNER_HEIGHT}rem - 4.5rem)`
 	: "1rem";
+const forumBasePath = url("/forum/");
+const isForumRoute =
+	pathsEqual(Astro.url.pathname, forumBasePath) ||
+	Astro.url.pathname.startsWith(forumBasePath);
 ---
 
 <Layout title={title} banner={banner} description={description} lang={lang} setOGTypeArticle={setOGTypeArticle}>
@@ -80,7 +85,7 @@ const mainPanelTop = siteConfig.banner.enable
             </a>}
 
 
-            <SideBar class="mb-4 row-start-2 col-span-1 lg:row-start-1 lg:col-span-1 md:row-start-1 md:col-span-1 lg:max-w-[17.5rem] md:max-w-[17.5rem] onload-animation" headings={headings}></SideBar>
+            <SideBar class="mb-4 row-start-2 col-span-1 lg:row-start-1 lg:col-span-1 md:row-start-1 md:col-span-1 lg:max-w-[17.5rem] md:max-w-[17.5rem] onload-animation" headings={headings} isForumRoute={isForumRoute}></SideBar>
 
             <main id="swup-main" class="row-start-1 col-span-1 lg:row-start-1 lg:col-span-1 md:row-start-1 md:col-span-1 overflow-visible min-w-0">
                 <div id="content-wrapper" class="onload-animation">

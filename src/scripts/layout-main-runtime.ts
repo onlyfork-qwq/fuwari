@@ -105,12 +105,35 @@ function loadGiscus() {
 	container.appendChild(script);
 }
 
+function syncSidebarProfileMode() {
+	const sidebar = document.getElementById("sidebar");
+	const blogProfile = document.getElementById("sidebar-profile-blog");
+	const forumProfile = document.getElementById("sidebar-profile-forum");
+	const timetable = document.getElementById("sidebar-timetable");
+	const deepwiki = document.getElementById("sidebar-deepwiki");
+	if (!sidebar || !blogProfile || !forumProfile) return;
+
+	const forumBasePath = sidebar.getAttribute("data-forum-base-path") || "/forum/";
+	const currentPath = window.location.pathname;
+	const normalizedCurrentPath = currentPath.endsWith("/") ? currentPath : `${currentPath}/`;
+	const normalizedForumBasePath = forumBasePath.endsWith("/") ? forumBasePath : `${forumBasePath}/`;
+	const isForumRoute =
+		normalizedCurrentPath === normalizedForumBasePath ||
+		normalizedCurrentPath.startsWith(normalizedForumBasePath);
+
+	blogProfile.classList.toggle("hidden", isForumRoute);
+	forumProfile.classList.toggle("hidden", !isForumRoute);
+	timetable?.classList.toggle("hidden", isForumRoute);
+	deepwiki?.classList.toggle("hidden", isForumRoute);
+}
+
 function init() {
 	loadTheme();
 	loadHue();
 	loadBgBlur();
 	showBanner();
 	loadGiscus();
+	syncSidebarProfileMode();
 
 	new MutationObserver(() => {
 		const frame = document.querySelector("iframe.giscus-frame");
@@ -208,6 +231,7 @@ const setup = () => {
 		}
 		scrollFunction();
 		loadGiscus();
+		syncSidebarProfileMode();
 	});
 	window.swup.hooks.on("visit:end", (_visit: { to: { url: string } }) => {
 		setTimeout(() => {
@@ -318,9 +342,13 @@ window.onscroll = () => {
 	}
 };
 if (document.readyState === "loading") {
-	document.addEventListener("DOMContentLoaded", scrollFunction);
+	document.addEventListener("DOMContentLoaded", () => {
+		scrollFunction();
+		syncSidebarProfileMode();
+	});
 } else {
 	scrollFunction();
+	syncSidebarProfileMode();
 }
 
 window.onresize = () => {

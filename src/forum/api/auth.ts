@@ -10,6 +10,7 @@ interface RawSessionUser {
 	displayName?: string;
 	avatar_url?: string | null;
 	avatarUrl?: string | null;
+	bio?: string | null;
 	role?: string | number;
 	is_admin?: boolean | number;
 	isAdmin?: boolean | number;
@@ -37,6 +38,7 @@ interface RawSessionResult {
 	displayName?: string;
 	avatar_url?: string | null;
 	avatarUrl?: string | null;
+	bio?: string | null;
 	role?: string | number;
 	is_admin?: boolean | number;
 	isAdmin?: boolean | number;
@@ -170,6 +172,7 @@ function normalizeUser(user?: RawSessionUser | null): ForumUser | null {
 		username: user.username || user.email || "用户",
 		displayName: user.display_name || user.displayName || user.username,
 		avatarUrl: user.avatar_url || user.avatarUrl || undefined,
+		bio: user.bio?.trim() || undefined,
 		role: normalizeRole(user),
 		createdAt: user.created_at || user.createdAt,
 		emailNotifications: user.email_notifications ?? user.emailNotifications,
@@ -190,6 +193,7 @@ function resolveSessionUser(result: RawSessionResult) {
 			display_name: result.display_name,
 			displayName: result.displayName,
 			avatar_url: result.avatar_url,
+			bio: result.bio,
 			avatarUrl: result.avatarUrl,
 			role: result.role,
 			is_admin: result.is_admin,
