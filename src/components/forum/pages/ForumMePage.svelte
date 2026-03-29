@@ -91,23 +91,6 @@
 		return null;
 	}
 
-	function validateAvatarUrl(value: string) {
-		const normalized = value.trim();
-		if (!normalized) {
-			return null;
-		}
-		if (normalized.length > 500) {
-			return "头像 URL 不能超过 500 个字符。";
-		}
-		if (/^https?:\/\//.test(normalized)) {
-			return null;
-		}
-		if (/^data:image\/svg\+xml(?:;charset=[^;,]+)?(?:;base64)?,/i.test(normalized)) {
-			return null;
-		}
-		return "头像 URL 仅支持 http(s) 链接或 data:image/svg+xml 内容。";
-	}
-
 	async function refreshSession(statusMessage?: string) {
 		const nextUser = await getCurrentUser();
 		forumAuth.setSession({
@@ -156,11 +139,6 @@
 		const usernameError = validateUsername(normalizedUsername);
 		if (usernameError) {
 			status = usernameError;
-			return;
-		}
-		const avatarError = validateAvatarUrl(normalizedAvatarUrl);
-		if (avatarError) {
-			status = avatarError;
 			return;
 		}
 		savingProfile = true;
