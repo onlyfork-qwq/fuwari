@@ -291,13 +291,6 @@
 				<div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">{status}</div>
 			{/if}
 
-			<div class="grid gap-4 md:grid-cols-1">
-				<div class="rounded-xl border border-white/10 bg-white/5 p-5">
-					<div class="text-sm text-white/40 mb-1">邮箱</div>
-					<div class="text-lg font-bold text-white break-all">{user.email || "未公开"}</div>
-				</div>
-			</div>
-
 			<div class="grid gap-6 lg:grid-cols-2">
 				<section class="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
 					<h2 class="text-lg font-bold text-white">基础资料</h2>
@@ -343,6 +336,10 @@
 				<section class="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
 					<h2 class="text-lg font-bold text-white">邮箱变更</h2>
 					<p class="text-sm text-white/45">提交后，确认链接会发送到新邮箱。</p>
+					<div class="space-y-2">
+						<label class="text-sm text-white/65">当前邮箱地址</label>
+						<div class="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white break-all">{user.email || "未公开"}</div>
+					</div>
 					<div class="space-y-2">
 						<label class="text-sm text-white/65" for="forum-email-new">新邮箱地址</label>
 						<input id="forum-email-new" bind:value={emailNew} type="email" class="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-[var(--primary)]" />
