@@ -55,9 +55,16 @@ interface RawSessionResult {
 
 interface ProfilePayload {
 	username?: string;
-	displayName?: string;
 	avatarUrl?: string;
 	emailNotifications?: boolean;
+}
+
+interface RawProfileResult extends RawSessionResult {
+	success?: boolean;
+	message?: string;
+	data?: {
+		user?: RawSessionUser | null;
+	} | null;
 }
 
 export type ForumUploadType = "post" | "comment" | "avatar";
@@ -242,6 +249,13 @@ export async function getSession() {
 	return normalizeSession(result);
 }
 
+export async function getCurrentUser() {
+	const result = await forumRequest<RawSessionUser>("/api/user/me", {
+		requiresAuth: true,
+	});
+	return normalizeUser(result);
+}
+
 export async function getCurrentUserAvatar() {
 	const result = await forumRequest<CurrentUserAvatarResult>("/api/user/avatar", {
 		requiresAuth: true,
@@ -250,17 +264,20 @@ export async function getCurrentUserAvatar() {
 }
 
 export async function updateProfile(payload: ProfilePayload) {
-	const result = await forumRequest<{ user?: RawSessionUser }>("/api/user/profile", {
+	const result = await forumRequest<RawProfileResult>("/api/user/profile", {
 		method: "POST",
 		requiresAuth: true,
 		json: {
 			username: payload.username,
-			display_name: payload.displayName,
 			avatar_url: payload.avatarUrl,
 			email_notifications: payload.emailNotifications,
 		},
 	});
-	return normalizeUser(result.user);
+	const resolvedUser = result.data?.user ?? result.user ?? resolveSessionUser(result);
+	if (!resolvedUser && (result.success !== undefined || result.message)) {
+		return null;
+	}
+	return normalizeUser(resolvedUser);
 }
 
 export async function uploadFile({ file, type, postId }: UploadPayload) {

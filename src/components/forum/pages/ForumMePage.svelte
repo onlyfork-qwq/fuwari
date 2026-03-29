@@ -4,9 +4,7 @@
 	import {
 		changeEmail,
 		deleteAccount,
-		getCurrentUserAvatar,
-		getSession,
-		getTotpStatus,
+		getCurrentUser,
 		logout,
 		setupTotp,
 		updateProfile,
@@ -27,7 +25,6 @@
 	let deletingAccount = false;
 
 	let username = "";
-	let displayName = "";
 	let avatarUrl = "";
 	let emailNotifications = true;
 
@@ -61,7 +58,6 @@
 	function applyUser(nextUser: ForumUser | null) {
 		user = nextUser;
 		username = nextUser?.username || "";
-		displayName = nextUser?.displayName || "";
 		avatarUrl = nextUser?.avatarUrl || "";
 		emailNotifications = nextUser?.emailNotifications ?? true;
 	}
@@ -78,27 +74,47 @@
 		return parts.join(" · ");
 	}
 
-	async function refreshSession(statusMessage?: string) {
-		const session = await getSession();
-		forumAuth.setSession(session);
-		let nextUser = session.user;
-
-		if (nextUser) {
-			try {
-				const [totpEnabled, currentAvatarUrl] = await Promise.all([
-					getTotpStatus(),
-					getCurrentUserAvatar(),
-				]);
-				nextUser = {
-					...nextUser,
-					totpEnabled,
-					avatarUrl: currentAvatarUrl || nextUser.avatarUrl,
-				};
-			} catch {
-				// ignore extra profile status errors and keep existing session data
-			}
+	function validateUsername(value: string) {
+		const normalized = value.trim();
+		if (!normalized) {
+			return "用户名不能为空。";
 		}
+		if (normalized.length > 20) {
+			return "用户名不能超过 20 个字符。";
+		}
+		if (/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/.test(normalized)) {
+			return "用户名不能包含控制字符或不可见字符。";
+		}
+		if (!/^[A-Za-z0-9_.\-\u4e00-\u9fa5]+$/.test(normalized)) {
+			return "用户名只能包含中文、字母、数字、点、下划线或连字符。";
+		}
+		return null;
+	}
 
+	function validateAvatarUrl(value: string) {
+		const normalized = value.trim();
+		if (!normalized) {
+			return null;
+		}
+		if (normalized.length > 500) {
+			return "头像 URL 不能超过 500 个字符。";
+		}
+		if (/^https?:\/\//.test(normalized)) {
+			return null;
+		}
+		if (/^data:image\/svg\+xml(?:;charset=[^;,]+)?(?:;base64)?,/i.test(normalized)) {
+			return null;
+		}
+		return "头像 URL 仅支持 http(s) 链接或 data:image/svg+xml 内容。";
+	}
+
+	async function refreshSession(statusMessage?: string) {
+		const nextUser = await getCurrentUser();
+		forumAuth.setSession({
+			user: nextUser,
+			token: null,
+			requiresTotp: false,
+		});
 		applyUser(nextUser);
 		if (statusMessage) {
 			status = statusMessage;
@@ -135,15 +151,27 @@
 
 	async function saveProfile() {
 		if (!user || savingProfile) return;
+		const normalizedUsername = username.trim();
+		const normalizedAvatarUrl = avatarUrl.trim();
+		const usernameError = validateUsername(normalizedUsername);
+		if (usernameError) {
+			status = usernameError;
+			return;
+		}
+		const avatarError = validateAvatarUrl(normalizedAvatarUrl);
+		if (avatarError) {
+			status = avatarError;
+			return;
+		}
 		savingProfile = true;
 		status = "正在保存资料...";
 		try {
 			await updateProfile({
-				username: username.trim() || undefined,
-				displayName: displayName.trim() || undefined,
-				avatarUrl: avatarUrl.trim() || undefined,
+				username: normalizedUsername,
+				avatarUrl: normalizedAvatarUrl || "",
 				emailNotifications,
 			});
+			avatarUrl = normalizedAvatarUrl;
 			await refreshSession("资料已更新。");
 		} catch (error) {
 			status = error instanceof Error ? error.message : "资料更新失败。";
@@ -319,12 +347,9 @@
 						<input id="forum-profile-username" bind:value={username} class="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-[var(--primary)]" maxlength="20" />
 					</div>
 					<div class="space-y-2">
-						<label class="text-sm text-white/65" for="forum-profile-display-name">显示名称</label>
-						<input id="forum-profile-display-name" bind:value={displayName} class="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-[var(--primary)]" maxlength="40" />
-					</div>
-					<div class="space-y-2">
 						<label class="text-sm text-white/65" for="forum-profile-avatar-url">头像 URL</label>
 						<input id="forum-profile-avatar-url" bind:value={avatarUrl} class="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-[var(--primary)]" />
+						<p class="text-xs text-white/40">留空表示使用默认头像，支持 http(s) 链接或 data:image/svg+xml。</p>
 					</div>
 					<div class="space-y-2">
 						<label class="text-sm text-white/65" for="forum-profile-avatar-file">上传头像</label>
