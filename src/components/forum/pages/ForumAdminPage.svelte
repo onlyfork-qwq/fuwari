@@ -71,6 +71,8 @@
 
 	let emailResults: AdminEmailTestResult[] = [];
 	let newCategoryName = "";
+	let userSearchQuery = "";
+	let userSearchSubmitting = false;
 	let emailTestTo = "";
 	let emailTestTemplates = emailTemplateOptions.map((item) => item.value);
 	let emailTesting = false;
@@ -116,10 +118,11 @@
 		}
 		status = "";
 		try {
+			const normalizedUserSearch = userSearchQuery.trim();
 			const [nextStats, nextSettings, nextUsers, nextCategories] = await Promise.all([
 				getAdminStats(),
 				getAdminSettings(),
-				getAdminUsers(),
+				getAdminUsers(normalizedUserSearch),
 				getAdminCategories(),
 			]);
 			isAdmin = true;
@@ -134,6 +137,27 @@
 			loading = false;
 			refreshing = false;
 		}
+	}
+
+	async function submitUserSearch() {
+		if (loading || refreshing || userSearchSubmitting) {
+			return;
+		}
+		userSearchSubmitting = true;
+		status = userSearchQuery.trim() ? "正在搜索用户..." : "正在加载全部用户...";
+		try {
+			await refreshData();
+		} finally {
+			userSearchSubmitting = false;
+		}
+	}
+
+	function resetUserSearch() {
+		if (!userSearchQuery) {
+			return;
+		}
+		userSearchQuery = "";
+		void submitUserSearch();
 	}
 
 	async function saveSettingsAction() {
@@ -612,7 +636,29 @@
 				</section>
 
 				<section class="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
-					<h2 class="text-lg font-bold text-white">用户列表</h2>
+					<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+						<h2 class="text-lg font-bold text-white">用户列表</h2>
+						<form class="flex w-full flex-col gap-2 md:w-auto md:min-w-[26rem] md:flex-row" on:submit|preventDefault={submitUserSearch}>
+							<input
+								bind:value={userSearchQuery}
+								type="text"
+								placeholder="搜索用户名或邮箱"
+								class="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-4 py-2.5 text-white outline-none focus:border-[var(--primary)]"
+							/>
+							<div class="flex gap-2">
+								<button class="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-bold text-white/75 disabled:opacity-60" type="submit" disabled={loading || refreshing || userSearchSubmitting}>{userSearchSubmitting ? "搜索中..." : "搜索"}</button>
+								<button class="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-bold text-white/55 disabled:opacity-60" type="button" disabled={loading || refreshing || userSearchSubmitting || !userSearchQuery} on:click={resetUserSearch}>清空</button>
+							</div>
+						</form>
+					</div>
+
+					<div class="text-sm text-white/40">
+						{#if userSearchQuery.trim()}
+							当前搜索：<span class="text-white/70">{userSearchQuery.trim()}</span> · 共 {users.length} 条结果
+						{:else}
+							当前显示全部用户 · 共 {users.length} 条
+						{/if}
+					</div>
 
 					<div class="space-y-3 md:hidden">
 						{#each users as forumUser}

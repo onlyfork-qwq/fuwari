@@ -102,9 +102,11 @@ export function saveAdminSettings(settings: ForumAdminSettings) {
 	});
 }
 
-export async function getAdminUsers() {
+export async function getAdminUsers(query?: string) {
+	const normalizedQuery = query?.trim() || undefined;
 	const result = await forumRequest<RawAdminUser[]>("/api/admin/users", {
 		requiresAuth: true,
+		query: normalizedQuery ? { q: normalizedQuery } : undefined,
 	});
 	return result.map(normalizeAdminUser);
 }

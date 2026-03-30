@@ -29,13 +29,27 @@ function createAuthStore() {
 				writeLocalStorage(TOKEN_STORAGE_KEY, session.token);
 			}
 
-			update((state) => ({
-				...state,
-				user: session.user,
-				token: session.token || state.token,
-				requiresTotp: Boolean(session.requiresTotp),
-				loading: false,
-			}));
+			update((state) => {
+				const nextUser = session.user
+					? {
+						...state.user,
+						...session.user,
+						id: session.user.id || state.user?.id || "",
+						username: session.user.username || state.user?.username,
+						displayName: session.user.displayName || state.user?.displayName || session.user.username || state.user?.username,
+						avatarUrl: session.user.avatarUrl || state.user?.avatarUrl,
+						email: session.user.email || state.user?.email,
+					}
+					: state.user;
+
+				return {
+					...state,
+					user: nextUser,
+					token: session.token || state.token,
+					requiresTotp: Boolean(session.requiresTotp),
+					loading: false,
+				};
+			});
 		},
 		clear: () => {
 			removeLocalStorage(TOKEN_STORAGE_KEY);

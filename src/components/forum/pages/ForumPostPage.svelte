@@ -372,24 +372,8 @@
 		</article>
 		<section class="space-y-4">
 			<div class="card-base border border-white/10 p-4 md:p-5">
-				<div class="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-					<h2 class="text-xl font-bold text-white">评论</h2>
-					<div class="flex items-center gap-3">
-						<label class="flex items-center gap-2 text-sm text-white/45">
-							<span>排序</span>
-							<select
-								value={commentSort}
-								class="forum-select rounded-xl border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-[var(--primary)] disabled:opacity-60"
-								disabled={commentsLoading}
-								on:change={(event) => changeCommentSort((event.currentTarget as HTMLSelectElement).value)}
-							>
-								{#each commentSortOptions as option}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
-						</label>
-						<span class="text-sm text-white/35">{comments.length} 条</span>
-					</div>
+				<div class="mb-4 border-b border-white/10 pb-4">
+					<h2 class="text-xl font-bold text-white">发布评论</h2>
 				</div>
 				{#if hasToken}
 					<div class="space-y-3">
@@ -397,8 +381,6 @@
 						<div class="flex items-center justify-between gap-3">
 							{#if commentStatus}
 								<p class="text-sm text-white/45">{commentStatus}</p>
-							{:else}
-								<span class="text-sm text-white/30">评论与回复都支持 Markdown，预览效果与正文展示一致。</span>
 							{/if}
 							<button class="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-bold text-black/80 disabled:opacity-60" type="button" disabled={commentSubmitting || !commentContent.trim()} on:click={() => submitComment()}>发表评论</button>
 						</div>
@@ -425,6 +407,9 @@
 				onCommentPatched={patchComment}
 				currentUser={currentUser}
 				onCommentDeleted={handleCommentDeleted}
+				{commentSort}
+				{commentSortOptions}
+				onSortChange={changeCommentSort}
 			/>
 		</section>
 	</div>

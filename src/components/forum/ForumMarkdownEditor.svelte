@@ -31,6 +31,7 @@
 	export let submitHint = "Ctrl/Cmd + Enter 提交";
 	export let minHeight = 220;
 	export let shellClass = "";
+	export let autoFocus = false;
 
 	const dispatch = createEventDispatcher<{
 		submit: void;
@@ -64,9 +65,6 @@
 		const root = containerEl?.querySelector(".toastui-editor-defaultUI");
 		root?.classList.toggle("is-disabled", nextDisabled);
 		editor?.setDisabled(nextDisabled);
-		if (!nextDisabled) {
-			editor?.focus();
-		}
 	}
 
 	function normalizeUploadError(error: unknown) {
@@ -146,6 +144,7 @@
 			editor = new Editor({
 				el: containerEl,
 				height: `${minHeight}px`,
+				autofocus: autoFocus,
 				initialEditType: "markdown",
 				previewStyle: "vertical",
 				initialValue: value,
@@ -214,12 +213,8 @@
 	}
 </script>
 
-<div class={`forum-editor-shell space-y-2 ${shellClass}`.trim()}>
+<div class={`forum-editor-shell ${shellClass}`.trim()}>
 	<div bind:this={containerEl} />
-	<div class="flex items-center justify-between gap-3 px-1 text-xs text-white/35">
-		<span>{uploadStatus || "Markdown 左右分栏预览，体验接近 Obsidian。"}</span>
-		<span>{uploading ? "图片处理中..." : submitHint}</span>
-	</div>
 </div>
 
 <style>

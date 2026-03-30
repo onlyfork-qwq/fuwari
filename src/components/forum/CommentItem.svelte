@@ -156,7 +156,7 @@
 	</div>
 
 	{#if canReply && activeReplyParentId === comment.id}
-		<div class="rounded-2xl border border-white/10 bg-[rgb(255_255_255_/_0.05)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+		<div class="card-base border border-white/10 p-4">
 			<slot name="reply-editor" />
 		</div>
 	{/if}
