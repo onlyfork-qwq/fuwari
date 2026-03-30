@@ -9,8 +9,20 @@
 
 	$: safePosts = Array.isArray(posts) ? posts : [];
 
+	function navigateTo(url: string) {
+		if (typeof window === "undefined") {
+			return;
+		}
+		const swup = (window as Window & { swup?: { navigate: (targetUrl: string) => void } }).swup;
+		if (swup) {
+			swup.navigate(url);
+			return;
+		}
+		window.location.href = url;
+	}
+
 	function goToPost(postId: string) {
-		window.location.href = `/forum/post/?id=${encodeURIComponent(postId)}`;
+		navigateTo(`/forum/post/?id=${encodeURIComponent(postId)}`);
 	}
 
 	function goToUser(userId?: string, event?: MouseEvent | KeyboardEvent) {
@@ -18,7 +30,7 @@
 		if (!userId) {
 			return;
 		}
-		window.location.href = `/forum/u/${encodeURIComponent(userId)}/`;
+		navigateTo(`/forum/u/${encodeURIComponent(userId)}/`);
 	}
 </script>
 

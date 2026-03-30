@@ -218,11 +218,23 @@
 		return ["admin", "administrator", "root", "superadmin", "super_admin"].includes(normalizedRole) ? "admin" : normalizedRole;
 	}
 
+	function navigateTo(url: string) {
+		if (typeof window === "undefined") {
+			return;
+		}
+		const swup = (window as Window & { swup?: { navigate: (targetUrl: string) => void } }).swup;
+		if (swup) {
+			swup.navigate(url);
+			return;
+		}
+		window.location.href = url;
+	}
+
 	function goToUser(userId?: string) {
 		if (!userId) {
 			return;
 		}
-		window.location.href = `/forum/u/${encodeURIComponent(userId)}/`;
+		navigateTo(`/forum/u/${encodeURIComponent(userId)}/`);
 	}
 
 	function isCurrentUserAdmin(user: ForumUser | null) {
