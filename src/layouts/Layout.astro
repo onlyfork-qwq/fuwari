@@ -44,7 +44,8 @@ let { title, banner, description, lang, setOGTypeArticle } = Astro.props;
 // so use Swup hooks instead to change the height immediately when a link is clicked
 const isHomePage = pathsEqual(Astro.url.pathname, url("/"));
 const isPostPage = Astro.url.pathname.startsWith(url("/posts/"));
-const showNewPostNotification = isHomePage || isPostPage;
+const isForumRoute = Astro.url.pathname.startsWith(url("/forum/"));
+const showNewPostNotification = !isForumRoute;
 
 // defines global css variables
 // why doing this in Layout instead of GlobalStyles: https://github.com/withastro/astro/issues/6728#issuecomment-1502203757
