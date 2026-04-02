@@ -210,7 +210,10 @@ func (s *Session) startProbe() {
 
 	dcB, _ := s.pcB.CreateDataChannel("probe", nil)
 	dcB.OnOpen(func() {
-		log.Println("pcB DataChannel打开")
+		log.Println("pcB DataChannel已打开 - Full Cone!")
+		s.mu.Lock()
+		s.pcBRecv = true
+		s.mu.Unlock()
 	})
 
 	offer, _ := s.pcB.CreateOffer(nil)
