@@ -55,46 +55,48 @@ async function startTest() {
 
 	const ipv4Candidates: string[] = [];
 	const ipv6Candidates: string[] = [];
+	const pendingCandidates: string[] = [];
 
 	try {
-		pc = new RTCPeerConnection(ICE_CONFIG);
-		pc.createDataChannel("nat-test");
-
-		pc.onicecandidate = (event) => {
-			if (event.candidate) {
-				const candidateStr = event.candidate.candidate;
-				console.log("[NAT] ICE candidate:", candidateStr);
-
-				if (isSrflxCandidate(candidateStr)) {
-					iceCandidates = [...iceCandidates, candidateStr];
-
-					const info = extractCandidateInfo(candidateStr);
-					if (info.isIpv6) {
-						ipv6Candidates.push(candidateStr);
-					} else {
-						ipv4Candidates.push(candidateStr);
-					}
-
-					if (ws && ws.readyState === WebSocket.OPEN) {
-						ws.send(JSON.stringify({ "ice-candidate": candidateStr }));
-					}
-				}
-			} else {
-				// ICE收集完成
-				console.log("[NAT] ICE gathering complete");
-				console.log("[NAT] IPv4 candidates:", ipv4Candidates.length);
-				console.log("[NAT] IPv6 candidates:", ipv6Candidates.length);
-			}
-		};
-
-		// 连接信令服务器
+		// 先连接信令服务器
 		ws = new WebSocket(SIGNALING_SERVER);
 
 		ws.onopen = () => {
 			console.log("[NAT] Connected to signaling server");
 
+			// WebSocket连接后再创建RTCPeerConnection
+			pc = new RTCPeerConnection(ICE_CONFIG);
+			pc.createDataChannel("nat-test");
+
+			pc.onicecandidate = (event) => {
+				if (event.candidate) {
+					const candidateStr = event.candidate.candidate;
+					console.log("[NAT] ICE candidate:", candidateStr);
+
+					if (isSrflxCandidate(candidateStr)) {
+						iceCandidates = [...iceCandidates, candidateStr];
+
+						const info = extractCandidateInfo(candidateStr);
+						if (info.isIpv6) {
+							ipv6Candidates.push(candidateStr);
+						} else {
+							ipv4Candidates.push(candidateStr);
+						}
+
+						// 立即发送给后端
+						if (ws && ws.readyState === WebSocket.OPEN) {
+							ws.send(JSON.stringify({ "ice-candidate": candidateStr }));
+						}
+					}
+				} else {
+					console.log("[NAT] ICE gathering complete");
+					console.log("[NAT] IPv4 candidates:", ipv4Candidates.length);
+					console.log("[NAT] IPv6 candidates:", ipv6Candidates.length);
+				}
+			};
+
 			// 创建offer并发送给后端
-			pc?.createOffer().then((offer) => {
+			pc.createOffer().then((offer) => {
 				ws?.send(
 					JSON.stringify({
 						"user-agent": navigator.userAgent,
@@ -188,7 +190,8 @@ async function startTest() {
 		console.error("[NAT] Error:", err);
 		error = err instanceof Error ? err.message : "测试失败";
 		testing = false;
-		pc?.close();
+		if (pc) pc.close();
+		if (ws) ws.close();
 	}
 }
 
