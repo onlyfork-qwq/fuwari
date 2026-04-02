@@ -1,76 +1,79 @@
 <script lang="ts">
-	import ForumMarkdownEditor from "@/components/forum/ForumMarkdownEditor.svelte";
-	import CommentItem from "@/components/forum/CommentItem.svelte";
-	import type { ForumComment } from "@/forum/types/comment";
-	import Icon from "@iconify/svelte";
+import CommentItem from "@/components/forum/CommentItem.svelte";
+import ForumMarkdownEditor from "@/components/forum/ForumMarkdownEditor.svelte";
+import type { ForumComment } from "@/forum/types/comment";
+import Icon from "@iconify/svelte";
 
-	export let comments: ForumComment[] = [];
-	export let loading = false;
-	export let canReply = false;
-	export let postId = "";
-	export let activeReplyParentId: string | null = null;
-	export let replyContent = "";
-	export let submittingReply = false;
-	export let onReplyToggle: (commentId: string | null) => void = () => {};
-	export let onReplyContentChange: (value: string) => void = () => {};
-	export let onReplySubmit: (comment: ForumComment) => void = () => {};
-	export let onReplyEscape: () => void = () => {};
-	export let onCommentPatched: (commentId: string, patch: Partial<ForumComment>) => void = () => {};
-	export let currentUser = null;
-	export let onCommentDeleted: () => void = () => {};
+export let comments: ForumComment[] = [];
+export let loading = false;
+export let canReply = false;
+export let postId = "";
+export let activeReplyParentId: string | null = null;
+export let replyContent = "";
+export let submittingReply = false;
+export let onReplyToggle: (commentId: string | null) => void = () => {};
+export let onReplyContentChange: (value: string) => void = () => {};
+export let onReplySubmit: (comment: ForumComment) => void = () => {};
+export let onReplyEscape: () => void = () => {};
+export let onCommentPatched: (
+	commentId: string,
+	patch: Partial<ForumComment>,
+) => void = () => {};
+export let currentUser: import("@/forum/types/user").ForumUser | null = null;
+export let onCommentDeleted: () => void = () => {};
 export let commentSort = "hot";
 export let commentSortOptions: Array<{ value: string; label: string }> = [];
 export let onSortChange: (value: string) => void = () => {};
 
-	function compareCommentsByCreatedAtAsc(a: ForumComment, b: ForumComment) {
-		const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-		const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-		const createdAtDiff = aTime - bTime;
-		if (createdAtDiff !== 0) {
-			return createdAtDiff;
-		}
-
-		return a.id.localeCompare(b.id);
+function compareCommentsByCreatedAtAsc(a: ForumComment, b: ForumComment) {
+	const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+	const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+	const createdAtDiff = aTime - bTime;
+	if (createdAtDiff !== 0) {
+		return createdAtDiff;
 	}
 
-	function sortRepliesByCreatedAt(comment: ForumComment) {
-		if (!comment.replies?.length) {
-			return;
-		}
+	return a.id.localeCompare(b.id);
+}
 
-		comment.replies = [...comment.replies].sort(compareCommentsByCreatedAtAsc);
-		for (const reply of comment.replies) {
-			sortRepliesByCreatedAt(reply);
-		}
+function sortRepliesByCreatedAt(comment: ForumComment) {
+	if (!comment.replies?.length) {
+		return;
 	}
 
-	function buildCommentTree(flatComments: ForumComment[]) {
-		const map = new Map<string, ForumComment>();
-		const roots: ForumComment[] = [];
+	comment.replies = [...comment.replies].sort(compareCommentsByCreatedAtAsc);
+	for (const reply of comment.replies) {
+		sortRepliesByCreatedAt(reply);
+	}
+}
 
-		for (const comment of flatComments) {
-			map.set(comment.id, { ...comment, replies: [] });
-		}
+function buildCommentTree(flatComments: ForumComment[]) {
+	const map = new Map<string, ForumComment>();
+	const roots: ForumComment[] = [];
 
-		for (const comment of map.values()) {
-			if (comment.parentId) {
-				const parent = map.get(comment.parentId);
-				if (parent) {
-					parent.replies = [...(parent.replies || []), comment];
-					continue;
-				}
+	for (const comment of flatComments) {
+		map.set(comment.id, { ...comment, replies: [] });
+	}
+
+	for (const comment of map.values()) {
+		if (comment.parentId) {
+			const parent = map.get(comment.parentId);
+			if (parent) {
+				parent.replies = [...(parent.replies || []), comment];
+				continue;
 			}
-			roots.push(comment);
 		}
-
-		for (const root of roots) {
-			sortRepliesByCreatedAt(root);
-		}
-
-		return roots;
+		roots.push(comment);
 	}
 
-	$: commentTree = buildCommentTree(comments);
+	for (const root of roots) {
+		sortRepliesByCreatedAt(root);
+	}
+
+	return roots;
+}
+
+$: commentTree = buildCommentTree(comments);
 </script>
 
 <div class="space-y-3">
@@ -104,20 +107,18 @@ export let onSortChange: (value: string) => void = () => {};
 			</div>
 			<div class="space-y-3">
 				{#each commentTree as comment (comment.id)}
-					<CommentItem
-						{comment}
-						{activeReplyParentId}
-						{replyContent}
-						{canReply}
-						{submittingReply}
-						{onReplyToggle}
-						{onReplyContentChange}
-						{onReplySubmit}
-						{onReplyEscape}
-						{onCommentPatched}
-						{currentUser}
-						onCommentDeleted={onCommentDeleted}
-					>
+				<CommentItem
+					{comment}
+					{activeReplyParentId}
+					{canReply}
+					{onReplyToggle}
+					{onReplyContentChange}
+					{onReplySubmit}
+					{onReplyEscape}
+					{onCommentPatched}
+					{currentUser}
+					onCommentDeleted={onCommentDeleted}
+				>
 						<div slot="reply-editor" class="space-y-3">
 							<ForumMarkdownEditor
 								bind:value={replyContent}

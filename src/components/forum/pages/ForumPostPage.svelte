@@ -1,346 +1,456 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { get } from "svelte/store";
-	import Icon from "@iconify/svelte";
-	import CommentList from "@/components/forum/CommentList.svelte";
-	import ForumMarkdownContent from "@/components/forum/ForumMarkdownContent.svelte";
-	import ForumMarkdownEditor from "@/components/forum/ForumMarkdownEditor.svelte";
-	import { createComment, getComments, type CommentListQuery } from "@/forum/api/comments";
-	import { deleteAdminPost } from "@/forum/api/admin";
-	import { getSession } from "@/forum/api/auth";
-	import { getPost, likePost } from "@/forum/api/posts";
-	import { forumAuth } from "@/forum/stores/auth";
-	import { ForumApiError } from "@/forum/types/api";
-	import type { ForumComment } from "@/forum/types/comment";
-	import { emitErrorToast, emitSuccessToast } from "@/forum/utils/toast";
-	import type { ForumPostDetail } from "@/forum/types/post";
-	import type { ForumUser } from "@/forum/types/user";
-	import { renderForumMarkdown } from "@/forum/utils/markdown";
-	import { formatForumDateTime } from "@/utils/date-utils";
+import CommentList from "@/components/forum/CommentList.svelte";
+import ForumMarkdownContent from "@/components/forum/ForumMarkdownContent.svelte";
+import ForumMarkdownEditor from "@/components/forum/ForumMarkdownEditor.svelte";
+import { deleteAdminPost } from "@/forum/api/admin";
+import { getSession } from "@/forum/api/auth";
+import {
+	type CommentListQuery,
+	createComment,
+	getComments,
+} from "@/forum/api/comments";
+import { getPost, likePost } from "@/forum/api/posts";
+import {
+	type NewCommentPayload,
+	type PostUpdatedPayload,
+	disconnectForumWebSocket,
+	getForumWebSocket,
+} from "@/forum/api/websocket";
+import { forumAuth } from "@/forum/stores/auth";
+import { ForumApiError } from "@/forum/types/api";
+import type { ForumComment } from "@/forum/types/comment";
+import type { ForumPostDetail } from "@/forum/types/post";
+import type { ForumUser } from "@/forum/types/user";
+import { renderForumMarkdown } from "@/forum/utils/markdown";
+import { emitErrorToast, emitSuccessToast } from "@/forum/utils/toast";
+import { formatForumDateTime } from "@/utils/date-utils";
+import Icon from "@iconify/svelte";
+import { onDestroy, onMount } from "svelte";
+import { get } from "svelte/store";
 
-	export let postId = "";
+export let postId = "";
 
-	let post: ForumPostDetail | null = null;
-	let comments: ForumComment[] = [];
-	let loading = true;
-	let commentsLoading = true;
-	let loadErrorKind: "not-found" | "unreachable" | "unknown" | null = null;
-	let loadErrorMessage = "";
-	let likeBusy = false;
-	let commentSubmitting = false;
-	let replySubmitting = false;
-	let commentContent = "";
-	let replyContent = "";
-	let commentStatus = "";
-	let activeReplyParentId: string | null = null;
-	let hasToken = false;
-	let currentUser: ForumUser | null = null;
-	let authReady = false;
-	let canEditPost = false;
-	let canDeletePost = false;
-	let deleteBusy = false;
-	const commentSortOptions = [
-		{ value: "hot", label: "最热" },
-		{ value: "oldest", label: "最早" },
-		{ value: "latest", label: "最新" },
-	] as const;
-	let commentSort = "hot";
+let post: ForumPostDetail | null = null;
+let comments: ForumComment[] = [];
+let loading = true;
+let commentsLoading = true;
+let loadErrorKind: "not-found" | "unreachable" | "unknown" | null = null;
+let loadErrorMessage = "";
+let likeBusy = false;
+let commentSubmitting = false;
+let replySubmitting = false;
+let commentContent = "";
+let replyContent = "";
+let commentStatus = "";
+let activeReplyParentId: string | null = null;
+let hasToken = false;
+let currentUser: ForumUser | null = null;
+let authReady = false;
+let canEditPost = false;
+let canDeletePost = false;
+let deleteBusy = false;
+const commentSortOptions: Array<{ value: string; label: string }> = [
+	{ value: "hot", label: "最热" },
+	{ value: "oldest", label: "最早" },
+	{ value: "latest", label: "最新" },
+];
+let commentSort = "hot";
+let forumWebSocket = getForumWebSocket();
+let wsConnected = false;
 
-	function refreshCommentCount() {
-		if (!post) return;
-		post = { ...post, commentCount: comments.length };
+function refreshCommentCount() {
+	if (!post) return;
+	post = { ...post, commentCount: comments.length };
+}
+
+function handleNewComment(payload: Record<string, unknown>) {
+	const commentPayload = payload as unknown as NewCommentPayload;
+	if (commentPayload.postId === postId) {
+		console.log("New comment received via WebSocket:", commentPayload.comment);
+		// 重新加载评论以获取完整数据
+		void loadComments();
+		commentStatus = "收到新评论，已自动刷新。";
 	}
+}
 
-	function getCommentSortQuery(sort: string): CommentListQuery {
-		switch (sort) {
-			case "oldest":
-				return { sortBy: "time", sortDir: "asc" };
-			case "latest":
-				return { sortBy: "time", sortDir: "desc" };
-			case "hot":
-			default:
-				return { sortBy: "likes", sortDir: "desc" };
-		}
-	}
-
-	function patchCommentInTree(list: ForumComment[], commentId: string, patch: Partial<ForumComment>) {
-		return list.map((item) => {
-			if (item.id === commentId) {
-				return { ...item, ...patch };
-			}
-			if (item.replies?.length) {
-				return { ...item, replies: patchCommentInTree(item.replies, commentId, patch) };
-			}
-			return item;
-		});
-	}
-
-	async function loadPost() {
-		loading = true;
-		loadErrorKind = null;
-		loadErrorMessage = "";
-		try {
-			const result = await getPost(postId);
+function handlePostUpdated(payload: Record<string, unknown>) {
+	const postPayload = payload as unknown as PostUpdatedPayload;
+	if (postPayload.postId === postId) {
+		console.log("Post updated via WebSocket:", postPayload);
+		// 更新帖子内容
+		if (post) {
 			post = {
-				...result,
+				...post,
+				title: postPayload.title || post.title,
+				content: postPayload.content || post.content,
+				excerpt: postPayload.content || post.excerpt,
+				updatedAt: postPayload.updated_at || post.updatedAt,
 				rendered: {
-					html: renderForumMarkdown(result.content || result.excerpt || ""),
+					html: renderForumMarkdown(postPayload.content || post.content || ""),
 				},
 			};
-			if (typeof document !== "undefined" && result.title) {
-				document.title = `${result.title} - 《二叉树树》官方网站`;
-			}
-		} catch (error) {
-			console.error(error);
-			post = null;
-			if (error instanceof ForumApiError) {
-				if (error.status === 404) {
-					loadErrorKind = "not-found";
-					loadErrorMessage = error.message || "帖子不存在。";
-				} else {
-					loadErrorKind = "unreachable";
-					loadErrorMessage = error.message || "论坛接口当前不可访问，请检查论坛环境配置。";
-				}
+			commentStatus = "帖子内容已更新。";
+		}
+	}
+}
+
+function setupWebSocket() {
+	if (!postId) return;
+
+	forumWebSocket.on("new_comment", handleNewComment);
+	forumWebSocket.on("post_updated", handlePostUpdated);
+	forumWebSocket.on("connected", () => {
+		wsConnected = true;
+		console.log("WebSocket connected for post:", postId);
+	});
+	forumWebSocket.on("disconnected", () => {
+		wsConnected = false;
+		console.log("WebSocket disconnected");
+	});
+
+	// 连接WebSocket并订阅当前帖子
+	forumWebSocket.connect(postId);
+}
+
+function cleanupWebSocket() {
+	forumWebSocket.off("new_comment", handleNewComment);
+	forumWebSocket.off("post_updated", handlePostUpdated);
+	forumWebSocket.off("connected", () => {});
+	forumWebSocket.off("disconnected", () => {});
+	forumWebSocket.disconnect();
+}
+
+function getCommentSortQuery(sort: string): CommentListQuery {
+	switch (sort) {
+		case "oldest":
+			return { sortBy: "time", sortDir: "asc" };
+		case "latest":
+			return { sortBy: "time", sortDir: "desc" };
+		case "hot":
+		default:
+			return { sortBy: "likes", sortDir: "desc" };
+	}
+}
+
+function patchCommentInTree(
+	list: ForumComment[],
+	commentId: string,
+	patch: Partial<ForumComment>,
+): ForumComment[] {
+	return list.map((item) => {
+		if (item.id === commentId) {
+			return { ...item, ...patch };
+		}
+		if (item.replies?.length) {
+			return {
+				...item,
+				replies: patchCommentInTree(item.replies, commentId, patch),
+			};
+		}
+		return item;
+	});
+}
+
+async function loadPost() {
+	loading = true;
+	loadErrorKind = null;
+	loadErrorMessage = "";
+	try {
+		const result = await getPost(postId);
+		post = {
+			...result,
+			rendered: {
+				html: renderForumMarkdown(result.content || result.excerpt || ""),
+			},
+		};
+		if (typeof document !== "undefined" && result.title) {
+			document.title = `${result.title} - 《二叉树树》官方网站`;
+		}
+	} catch (error) {
+		console.error(error);
+		post = null;
+		if (error instanceof ForumApiError) {
+			if (error.status === 404) {
+				loadErrorKind = "not-found";
+				loadErrorMessage = error.message || "帖子不存在。";
 			} else {
-				loadErrorKind = "unknown";
-				loadErrorMessage = error instanceof Error ? error.message : "帖子加载失败，请稍后重试。";
+				loadErrorKind = "unreachable";
+				loadErrorMessage =
+					error.message || "论坛接口当前不可访问，请检查论坛环境配置。";
 			}
-		} finally {
-			loading = false;
-		}
-	}
-
-	async function loadComments() {
-		commentsLoading = true;
-		try {
-			comments = await getComments(postId, getCommentSortQuery(commentSort));
-			refreshCommentCount();
-		} catch (error) {
-			console.error(error);
-			comments = [];
-		} finally {
-			commentsLoading = false;
-		}
-	}
-
-	function changeCommentSort(nextSort: string) {
-		if (commentSort === nextSort || commentsLoading) {
-			return;
-		}
-		commentSort = nextSort;
-		void loadComments();
-	}
-
-	async function toggleLike() {
-		if (!post || likeBusy) return;
-		likeBusy = true;
-		try {
-			const previousLiked = Boolean(post.liked);
-			const previousLikeCount = post.likeCount ?? 0;
-			const result = await likePost(post.id);
-			const nextLiked = Boolean(result.liked);
-			const nextLikeCount =
-				typeof result.likeCount === "number"
-					? result.likeCount
-					: Math.max(0, previousLikeCount + (nextLiked === previousLiked ? 0 : nextLiked ? 1 : -1));
-			post = { ...post, liked: nextLiked, likeCount: nextLikeCount };
-		} catch (error) {
-			console.error(error);
-		} finally {
-			likeBusy = false;
-		}
-	}
-
-	async function submitComment(parentId?: string) {
-		const isReply = Boolean(parentId);
-		const content = (isReply ? replyContent : commentContent).trim();
-		if (!content) {
-			commentStatus = isReply ? "请先填写回复内容。" : "请先填写评论内容。";
-			return;
-		}
-
-		if (isReply) {
-			replySubmitting = true;
 		} else {
-			commentSubmitting = true;
+			loadErrorKind = "unknown";
+			loadErrorMessage =
+				error instanceof Error ? error.message : "帖子加载失败，请稍后重试。";
 		}
-		commentStatus = isReply ? "正在回复..." : "正在发表评论...";
+	} finally {
+		loading = false;
+	}
+}
 
-		try {
-			await createComment({ postId, content, parentId });
-			if (isReply) {
-				replyContent = "";
-				activeReplyParentId = null;
-			} else {
-				commentContent = "";
-			}
-			await loadComments();
-			commentStatus = isReply ? "回复成功。" : "评论成功。";
-		} catch (error) {
-			commentStatus = error instanceof Error ? error.message : isReply ? "回复失败，请稍后重试。" : "评论失败，请稍后重试。";
-		} finally {
-			if (isReply) {
-				replySubmitting = false;
-			} else {
-				commentSubmitting = false;
-			}
-		}
+async function loadComments() {
+	commentsLoading = true;
+	try {
+		comments = await getComments(postId, getCommentSortQuery(commentSort));
+		refreshCommentCount();
+	} catch (error) {
+		console.error(error);
+		comments = [];
+	} finally {
+		commentsLoading = false;
+	}
+}
+
+function changeCommentSort(nextSort: string) {
+	if (commentSort === nextSort || commentsLoading) {
+		return;
+	}
+	commentSort = nextSort;
+	void loadComments();
+}
+
+async function toggleLike() {
+	if (!post || likeBusy) return;
+	likeBusy = true;
+	try {
+		const previousLiked = Boolean(post.liked);
+		const previousLikeCount = post.likeCount ?? 0;
+		const result = await likePost(post.id);
+		const nextLiked = Boolean(result.liked);
+		const nextLikeCount =
+			typeof result.likeCount === "number"
+				? result.likeCount
+				: Math.max(
+						0,
+						previousLikeCount +
+							(nextLiked === previousLiked ? 0 : nextLiked ? 1 : -1),
+					);
+		post = { ...post, liked: nextLiked, likeCount: nextLikeCount };
+	} catch (error) {
+		console.error(error);
+	} finally {
+		likeBusy = false;
+	}
+}
+
+async function submitComment(parentId?: string) {
+	const isReply = Boolean(parentId);
+	const content = (isReply ? replyContent : commentContent).trim();
+	if (!content) {
+		commentStatus = isReply ? "请先填写回复内容。" : "请先填写评论内容。";
+		return;
 	}
 
-	function setReplyTarget(commentId: string | null) {
-		activeReplyParentId = commentId;
-		if (!commentId) {
+	if (isReply) {
+		replySubmitting = true;
+	} else {
+		commentSubmitting = true;
+	}
+	commentStatus = isReply ? "正在回复..." : "正在发表评论...";
+
+	try {
+		await createComment({ postId, content, parentId });
+		if (isReply) {
 			replyContent = "";
+			activeReplyParentId = null;
+		} else {
+			commentContent = "";
 		}
-	}
-
-	function patchComment(commentId: string, patch: Partial<ForumComment>) {
-		comments = patchCommentInTree(comments, commentId, patch);
-	}
-
-	async function handleCommentDeleted() {
-		commentStatus = "正在刷新评论列表...";
 		await loadComments();
-		commentStatus = "评论已删除。";
+		commentStatus = isReply ? "回复成功。" : "评论成功。";
+	} catch (error) {
+		commentStatus =
+			error instanceof Error
+				? error.message
+				: isReply
+					? "回复失败，请稍后重试。"
+					: "评论失败，请稍后重试。";
+	} finally {
+		if (isReply) {
+			replySubmitting = false;
+		} else {
+			commentSubmitting = false;
+		}
 	}
+}
 
-	function resolvePostId() {
-		if (postId) {
-			return postId;
-		}
-		if (typeof window === "undefined") {
-			return "";
-		}
-		return new URLSearchParams(window.location.search).get("id") || "";
+function setReplyTarget(commentId: string | null) {
+	activeReplyParentId = commentId;
+	if (!commentId) {
+		replyContent = "";
 	}
+}
 
-	function normalizeRole(role?: string) {
-		if (!role) {
-			return "";
-		}
-		const normalizedRole = role.trim().toLowerCase();
-		return ["admin", "administrator", "root", "superadmin", "super_admin"].includes(normalizedRole) ? "admin" : normalizedRole;
+function patchComment(commentId: string, patch: Partial<ForumComment>) {
+	comments = patchCommentInTree(comments, commentId, patch);
+}
+
+async function handleCommentDeleted() {
+	commentStatus = "正在刷新评论列表...";
+	await loadComments();
+	commentStatus = "评论已删除。";
+}
+
+function resolvePostId() {
+	if (postId) {
+		return postId;
 	}
-
-	function navigateTo(url: string) {
-		if (typeof window === "undefined") {
-			return;
-		}
-		const swup = (window as Window & { swup?: { navigate: (targetUrl: string) => void } }).swup;
-		if (swup) {
-			swup.navigate(url);
-			return;
-		}
-		window.location.href = url;
+	if (typeof window === "undefined") {
+		return "";
 	}
+	return new URLSearchParams(window.location.search).get("id") || "";
+}
 
-	function goToUser(userId?: string) {
-		if (!userId) {
-			return;
-		}
-		navigateTo(`/forum/u/${encodeURIComponent(userId)}/`);
+function normalizeRole(role?: string) {
+	if (!role) {
+		return "";
 	}
+	const normalizedRole = role.trim().toLowerCase();
+	return [
+		"admin",
+		"administrator",
+		"root",
+		"superadmin",
+		"super_admin",
+	].includes(normalizedRole)
+		? "admin"
+		: normalizedRole;
+}
 
-	function isCurrentUserAdmin(user: ForumUser | null) {
-		return normalizeRole(user?.role) === "admin";
+function navigateTo(url: string) {
+	if (typeof window === "undefined") {
+		return;
 	}
+	const swup = (
+		window as Window & { swup?: { navigate: (targetUrl: string) => void } }
+	).swup;
+	if (swup) {
+		swup.navigate(url);
+		return;
+	}
+	window.location.href = url;
+}
 
-	async function handleDeletePost() {
-		if (!post || !canDeletePost || deleteBusy) {
-			return;
-		}
-		if (!window.confirm("确定要删除这篇帖子吗？删除后不可恢复。")) {
-			return;
-		}
-		deleteBusy = true;
-		commentStatus = "正在删除帖子...";
-		try {
-			await deleteAdminPost(post.id);
-			commentStatus = "帖子已删除，正在返回论坛首页...";
-			emitSuccessToast("帖子管理", "帖子已删除，正在返回论坛首页...");
-			await new Promise((resolve) => window.setTimeout(resolve, 180));
-			navigateTo("/forum/");
-		} catch (error) {
-			if (error instanceof ForumApiError) {
-				if (error.status === 404) {
-					commentStatus = "帖子不存在或已被删除。";
-					emitErrorToast("帖子管理", "帖子不存在或已被删除。");
-					await new Promise((resolve) => window.setTimeout(resolve, 180));
-					navigateTo("/forum/");
-					return;
-				}
-				if (error.status === 401) {
-					forumAuth.clear();
-					commentStatus = "登录状态已失效，请重新登录后再试。";
-					emitErrorToast("帖子管理", "登录状态已失效，请重新登录后再试。");
-					return;
-				}
-				if (error.status === 403) {
-					commentStatus = "你没有删除该帖子的管理员权限。";
-					emitErrorToast("帖子管理", "你没有删除该帖子的管理员权限。");
-					return;
-				}
-				commentStatus = error.message || "删帖失败，请稍后重试。";
-				emitErrorToast("帖子管理", commentStatus);
+function goToUser(userId?: string) {
+	if (!userId) {
+		return;
+	}
+	navigateTo(`/forum/u/${encodeURIComponent(userId)}/`);
+}
+
+function isCurrentUserAdmin(user: ForumUser | null) {
+	return normalizeRole(user?.role) === "admin";
+}
+
+async function handleDeletePost() {
+	if (!post || !canDeletePost || deleteBusy) {
+		return;
+	}
+	if (!window.confirm("确定要删除这篇帖子吗？删除后不可恢复。")) {
+		return;
+	}
+	deleteBusy = true;
+	commentStatus = "正在删除帖子...";
+	try {
+		await deleteAdminPost(post.id);
+		commentStatus = "帖子已删除，正在返回论坛首页...";
+		emitSuccessToast("帖子管理", "帖子已删除，正在返回论坛首页...");
+		await new Promise((resolve) => window.setTimeout(resolve, 180));
+		navigateTo("/forum/");
+	} catch (error) {
+		if (error instanceof ForumApiError) {
+			if (error.status === 404) {
+				commentStatus = "帖子不存在或已被删除。";
+				emitErrorToast("帖子管理", "帖子不存在或已被删除。");
+				await new Promise((resolve) => window.setTimeout(resolve, 180));
+				navigateTo("/forum/");
 				return;
 			}
-			commentStatus = error instanceof Error ? error.message : "删帖失败，请稍后重试。";
+			if (error.status === 401) {
+				forumAuth.clear();
+				commentStatus = "登录状态已失效，请重新登录后再试。";
+				emitErrorToast("帖子管理", "登录状态已失效，请重新登录后再试。");
+				return;
+			}
+			if (error.status === 403) {
+				commentStatus = "你没有删除该帖子的管理员权限。";
+				emitErrorToast("帖子管理", "你没有删除该帖子的管理员权限。");
+				return;
+			}
+			commentStatus = error.message || "删帖失败，请稍后重试。";
 			emitErrorToast("帖子管理", commentStatus);
-		} finally {
-			deleteBusy = false;
-		}
-	}
-
-	$: canEditPost = Boolean(post && authReady && currentUser && (isCurrentUserAdmin(currentUser) || Boolean(post.authorId && currentUser.id === post.authorId)));
-	$: canDeletePost = Boolean(post && authReady && currentUser && isCurrentUserAdmin(currentUser));
-
-	async function ensureCurrentUser() {
-		const state = get(forumAuth);
-		hasToken = Boolean(forumAuth.getToken()) || Boolean(state.token);
-		currentUser = state.user;
-		authReady = Boolean(!hasToken || state.user);
-		if (!hasToken || state.user) {
 			return;
 		}
-		try {
-			const session = await getSession();
-			forumAuth.setSession(session);
-			currentUser = session.user;
-			hasToken = Boolean(session.token || forumAuth.getToken());
-		} catch (error) {
-			if (error instanceof ForumApiError && error.status === 401) {
-				forumAuth.clear();
-				hasToken = false;
-				currentUser = null;
-			} else {
-				console.error(error);
-			}
-		} finally {
-			authReady = true;
-		}
+		commentStatus =
+			error instanceof Error ? error.message : "删帖失败，请稍后重试。";
+		emitErrorToast("帖子管理", commentStatus);
+	} finally {
+		deleteBusy = false;
 	}
+}
 
-	onMount(() => {
-		postId = resolvePostId();
-		hasToken = Boolean(forumAuth.getToken()) || Boolean(get(forumAuth).token);
-		currentUser = get(forumAuth).user;
-		authReady = Boolean(!hasToken || currentUser);
-		const unsubscribe = forumAuth.subscribe((state) => {
-			hasToken = Boolean(state.token);
-			currentUser = state.user;
-			authReady = Boolean(!state.token || state.user);
-		});
-		void ensureCurrentUser();
-		if (postId) {
-			loadPost();
-			loadComments();
+$: canEditPost = Boolean(
+	post &&
+		authReady &&
+		currentUser &&
+		(isCurrentUserAdmin(currentUser) ||
+			Boolean(post.authorId && currentUser.id === post.authorId)),
+);
+$: canDeletePost = Boolean(
+	post && authReady && currentUser && isCurrentUserAdmin(currentUser),
+);
+
+async function ensureCurrentUser() {
+	const state = get(forumAuth);
+	hasToken = Boolean(forumAuth.getToken()) || Boolean(state.token);
+	currentUser = state.user;
+	authReady = Boolean(!hasToken || state.user);
+	if (!hasToken || state.user) {
+		return;
+	}
+	try {
+		const session = await getSession();
+		forumAuth.setSession(session);
+		currentUser = session.user;
+		hasToken = Boolean(session.token || forumAuth.getToken());
+	} catch (error) {
+		if (error instanceof ForumApiError && error.status === 401) {
+			forumAuth.clear();
+			hasToken = false;
+			currentUser = null;
 		} else {
-			loading = false;
-			commentsLoading = false;
-			post = null;
+			console.error(error);
 		}
-		return unsubscribe;
+	} finally {
+		authReady = true;
+	}
+}
+
+onMount(() => {
+	postId = resolvePostId();
+	hasToken = Boolean(forumAuth.getToken()) || Boolean(get(forumAuth).token);
+	currentUser = get(forumAuth).user;
+	authReady = Boolean(!hasToken || currentUser);
+	const unsubscribe = forumAuth.subscribe((state) => {
+		hasToken = Boolean(state.token);
+		currentUser = state.user;
+		authReady = Boolean(!state.token || state.user);
 	});
+	void ensureCurrentUser();
+	if (postId) {
+		loadPost();
+		loadComments();
+		setupWebSocket();
+	} else {
+		loading = false;
+		commentsLoading = false;
+		post = null;
+	}
+	return () => {
+		unsubscribe();
+		cleanupWebSocket();
+	};
+});
 </script>
 
 {#if loading}
@@ -397,6 +507,12 @@
 						<span>{formatForumDateTime(post.updatedAt || post.createdAt)}</span>
 					</div>
 					<div class="flex flex-wrap gap-3">
+						<div class="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-white/60">
+							<div class="flex items-center gap-2">
+								<span class="h-2 w-2 rounded-full {wsConnected ? 'bg-green-400' : 'bg-red-400'}"></span>
+								<span>{wsConnected ? '实时连接' : '未连接'}</span>
+							</div>
+						</div>
 						<a href="/forum/" class="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-white/60">返回论坛首页</a>
 						{#if canEditPost}
 							<a href={`/forum/edit/?id=${encodeURIComponent(post.id)}`} class="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-white/75">编辑帖子</a>
