@@ -116,25 +116,30 @@ async function startTest() {
 					candidate: data["ice-candidate"],
 					sdpMLineIndex: 0,
 				});
-			} else if (data.ipv4) {
-				ipv4Result = {
-					natType: data.ipv4.nat_type,
-					publicIp: data.ipv4.public_ip || "未知",
-				};
-			} else if (data.ipv6) {
-				ipv6Result = {
-					status: data.ipv6.status,
-					publicIp: data.ipv6.public_ip || "未知",
-				};
-			} else if (data.nat_type) {
-				// 兼容旧格式
-				ipv4Result = {
-					natType: data.nat_type,
-					publicIp: data.public_ip || "未知",
-				};
 			} else if (data.error) {
 				error = data.error;
 				ws?.close();
+			} else {
+				// 同时处理ipv4和ipv6
+				if (data.ipv4) {
+					ipv4Result = {
+						natType: data.ipv4.nat_type,
+						publicIp: data.ipv4.public_ip || "未知",
+					};
+				}
+				if (data.ipv6) {
+					ipv6Result = {
+						status: data.ipv6.status,
+						publicIp: data.ipv6.public_ip || "未知",
+					};
+				}
+				if (data.nat_type) {
+					// 兼容旧格式
+					ipv4Result = {
+						natType: data.nat_type,
+						publicIp: data.public_ip || "未知",
+					};
+				}
 			}
 
 			// 检查是否完成
