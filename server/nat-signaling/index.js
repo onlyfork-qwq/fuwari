@@ -183,10 +183,10 @@ function analyzeAndSendResult(client) {
 	const publicPort = srflxCandidates[0].port;
 
 	// 存储测试结果
-	if (!clientTestResults.has(clientIp)) {
-		clientTestResults.set(clientIp, []);
+	if (!clientTestResults.has(client.ip)) {
+		clientTestResults.set(client.ip, []);
 	}
-	const results = clientTestResults.get(clientIp);
+	const results = clientTestResults.get(client.ip);
 	results.push({ phase, ip: publicIp, port: publicPort });
 
 	console.log("[NAT] 阶段 " + phase + " 公网: " + publicIp + ":" + publicPort);
@@ -233,7 +233,7 @@ function analyzeAndSendResult(client) {
 		client.ws.send(JSON.stringify(result));
 
 		// 清理测试结果
-		clientTestResults.delete(clientIp);
+		clientTestResults.delete(client.ip);
 	}
 }
 
