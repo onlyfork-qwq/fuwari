@@ -41,7 +41,9 @@ interface RawCategory {
 	description?: string;
 }
 
-function normalizeAdminSettings(settings: RawAdminSettings): ForumAdminSettings {
+function normalizeAdminSettings(
+	settings: RawAdminSettings,
+): ForumAdminSettings {
 	return {
 		turnstileEnabled: Boolean(settings.turnstile_enabled),
 		notifyOnUserDelete: Boolean(settings.notify_on_user_delete),
@@ -63,7 +65,8 @@ function normalizeAdminUser(user: RawAdminUser): ForumUser {
 		role: user.role,
 		createdAt: user.created_at,
 		verified: user.verified !== undefined ? Boolean(user.verified) : undefined,
-		totpEnabled: user.totp_enabled !== undefined ? Boolean(user.totp_enabled) : undefined,
+		totpEnabled:
+			user.totp_enabled !== undefined ? Boolean(user.totp_enabled) : undefined,
 	};
 }
 
@@ -115,8 +118,12 @@ export async function getAdminUsers(query?: string) {
 }
 
 export async function getAdminCategories() {
-	const result = await forumRequest<RawCategory[] | { items?: RawCategory[]; categories?: RawCategory[] }>("/api/categories");
-	const categories = Array.isArray(result) ? result : result.items || result.categories || [];
+	const result = await forumRequest<
+		RawCategory[] | { items?: RawCategory[]; categories?: RawCategory[] }
+	>("/api/categories");
+	const categories = Array.isArray(result)
+		? result
+		: result.items || result.categories || [];
 	return categories.map(normalizeCategory);
 }
 
@@ -143,11 +150,23 @@ export function deleteAdminCategory(id: string) {
 	});
 }
 
-function normalizeEmailTestResults(result: { results?: AdminEmailTestResult[] } | AdminEmailTestResult[] | AdminEmailTestResult | null | undefined) {
+function normalizeEmailTestResults(
+	result:
+		| { results?: AdminEmailTestResult[] }
+		| AdminEmailTestResult[]
+		| AdminEmailTestResult
+		| null
+		| undefined,
+) {
 	if (Array.isArray(result)) {
 		return result;
 	}
-	if (result && typeof result === "object" && "results" in result && Array.isArray(result.results)) {
+	if (
+		result &&
+		typeof result === "object" &&
+		"results" in result &&
+		Array.isArray(result.results)
+	) {
 		return result.results;
 	}
 	if (result && typeof result === "object" && "template" in result) {
@@ -157,7 +176,11 @@ function normalizeEmailTestResults(result: { results?: AdminEmailTestResult[] } 
 }
 
 export async function sendAdminTestEmail(options: AdminEmailTestOptions) {
-	const result = await forumRequest<{ results?: AdminEmailTestResult[] } | AdminEmailTestResult[] | AdminEmailTestResult>("/api/admin/email/test", {
+	const result = await forumRequest<
+		| { results?: AdminEmailTestResult[] }
+		| AdminEmailTestResult[]
+		| AdminEmailTestResult
+	>("/api/admin/email/test", {
 		method: "POST",
 		requiresAuth: true,
 		json: {
@@ -170,19 +193,25 @@ export async function sendAdminTestEmail(options: AdminEmailTestOptions) {
 }
 
 export function resendAdminUserVerification(userId: string) {
-	return forumRequest<AdminUserActionResult>(`/api/admin/users/${userId}/resend-verification`, {
-		method: "POST",
-		requiresAuth: true,
-		json: {},
-	});
+	return forumRequest<AdminUserActionResult>(
+		`/api/admin/users/${userId}/resend-verification`,
+		{
+			method: "POST",
+			requiresAuth: true,
+			json: {},
+		},
+	);
 }
 
 export function verifyAdminUser(userId: string) {
-	return forumRequest<AdminUserActionResult>(`/api/admin/users/${userId}/verify`, {
-		method: "POST",
-		requiresAuth: true,
-		json: {},
-	});
+	return forumRequest<AdminUserActionResult>(
+		`/api/admin/users/${userId}/verify`,
+		{
+			method: "POST",
+			requiresAuth: true,
+			json: {},
+		},
+	);
 }
 
 export function deleteAdminUser(userId: string) {
@@ -199,17 +228,23 @@ export function deleteAdminPost(id: string) {
 	});
 }
 
-export function updateAdminUser(userId: string, payload: AdminUserUpdatePayload) {
-	return forumRequest<AdminUserActionResult>(`/api/admin/users/${userId}/update`, {
-		method: "POST",
-		requiresAuth: true,
-		json: {
-			username: payload.username,
-			email: payload.email,
-			avatar_url: payload.avatarUrl,
-			password: payload.password,
+export function updateAdminUser(
+	userId: string,
+	payload: AdminUserUpdatePayload,
+) {
+	return forumRequest<AdminUserActionResult>(
+		`/api/admin/users/${userId}/update`,
+		{
+			method: "POST",
+			requiresAuth: true,
+			json: {
+				username: payload.username,
+				email: payload.email,
+				avatar_url: payload.avatarUrl,
+				password: payload.password,
+			},
 		},
-	});
+	);
 }
 
 export function scanAdminStorageGc() {
@@ -219,11 +254,24 @@ export function scanAdminStorageGc() {
 }
 
 export function cleanupAdminStorageGc(orphans?: string[]) {
-	return forumRequest<AdminStorageGcCleanupResult>("/api/admin/cleanup/execute", {
-		method: "POST",
-		requiresAuth: true,
-		json: {
-			orphans,
+	return forumRequest<AdminStorageGcCleanupResult>(
+		"/api/admin/cleanup/execute",
+		{
+			method: "POST",
+			requiresAuth: true,
+			json: {
+				orphans,
+			},
 		},
-	});
+	);
+}
+
+export interface SubscriptionCount {
+	count: number;
+}
+
+export function getArticleNotificationsCount() {
+	return forumRequest<SubscriptionCount>(
+		"/api/subscriptions/article-notifications",
+	);
 }

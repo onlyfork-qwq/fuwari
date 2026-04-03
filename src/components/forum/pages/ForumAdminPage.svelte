@@ -1,471 +1,516 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import Icon from "@iconify/svelte";
-	import {
-		cleanupAdminStorageGc,
-		createAdminCategory,
-		deleteAdminCategory,
-		deleteAdminUser,
-		getAdminCategories,
-		getAdminSettings,
-		getAdminStats,
-		getAdminUsers,
-		updateAdminUser,
-		resendAdminUserVerification,
-		saveAdminSettings,
-		scanAdminStorageGc,
-		sendAdminTestEmail,
-		updateAdminCategory,
-		verifyAdminUser,
-	} from "@/forum/api/admin";
-	import { getSession } from "@/forum/api/auth";
-	import { forumAuth } from "@/forum/stores/auth";
-	import { emitErrorToast, emitSuccessToast } from "@/forum/utils/toast";
-	import { forumEnv } from "@/forum/stores/env";
-	import type {
-		AdminEmailTestResult,
-		AdminStats,
-		AdminStorageGcScanResult,
-		AdminUserUpdatePayload,
-		ForumAdminSettings,
-	} from "@/forum/types/api";
-	import type { ForumCategory } from "@/forum/types/post";
-	import type { ForumUser } from "@/forum/types/user";
+import {
+	cleanupAdminStorageGc,
+	createAdminCategory,
+	deleteAdminCategory,
+	deleteAdminUser,
+	getAdminCategories,
+	getAdminSettings,
+	getAdminStats,
+	getAdminUsers,
+	getArticleNotificationsCount,
+	resendAdminUserVerification,
+	saveAdminSettings,
+	scanAdminStorageGc,
+	sendAdminTestEmail,
+	updateAdminCategory,
+	updateAdminUser,
+	verifyAdminUser,
+} from "@/forum/api/admin";
+import { getSession } from "@/forum/api/auth";
+import { forumAuth } from "@/forum/stores/auth";
+import { forumEnv } from "@/forum/stores/env";
+import type {
+	AdminEmailTestResult,
+	AdminStats,
+	AdminStorageGcScanResult,
+	AdminUserUpdatePayload,
+	ForumAdminSettings,
+} from "@/forum/types/api";
+import type { ForumCategory } from "@/forum/types/post";
+import type { ForumUser } from "@/forum/types/user";
+import { emitErrorToast, emitSuccessToast } from "@/forum/utils/toast";
+import Icon from "@iconify/svelte";
+import { onMount } from "svelte";
 
-	const defaultSettings: ForumAdminSettings = {
-		turnstileEnabled: false,
-		notifyOnUserDelete: false,
-		notifyOnPostDelete: false,
-		notifyOnUsernameChange: false,
-		notifyOnAvatarChange: false,
-		notifyOnManualVerify: false,
-		sessionTtlDays: 7,
-	};
+const defaultSettings: ForumAdminSettings = {
+	turnstileEnabled: false,
+	notifyOnUserDelete: false,
+	notifyOnPostDelete: false,
+	notifyOnUsernameChange: false,
+	notifyOnAvatarChange: false,
+	notifyOnManualVerify: false,
+	sessionTtlDays: 7,
+};
 
-	function truncateDisplayName(value?: string, maxLength = 10) {
-		if (!value) {
-			return "";
-		}
-		return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+function truncateDisplayName(value?: string, maxLength = 10) {
+	if (!value) {
+		return "";
 	}
+	return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
 
-	let loading = true;
-	let refreshing = false;
-	let status = "";
-	let currentUser: ForumUser | null = null;
-	let stats: AdminStats | null = null;
-	let settings: ForumAdminSettings = { ...defaultSettings };
-	let users: ForumUser[] = [];
-	let categories: ForumCategory[] = [];
-	const emailTemplateOptions = [
-		{ value: "smtp_test", label: "SMTP 测试邮件" },
-		{ value: "reset_password", label: "密码重置邮件" },
-		{ value: "change_email_confirm", label: "更换邮箱确认邮件" },
-		{ value: "register_verify", label: "注册验证邮件" },
-		{ value: "admin_resend_verify", label: "后台重发验证邮件" },
-		{ value: "admin_avatar_updated", label: "后台头像更新通知" },
-		{ value: "admin_username_updated", label: "后台用户名更新通知" },
-		{ value: "admin_manual_verified", label: "后台手动验证通知" },
-		{ value: "admin_account_deleted", label: "后台删号通知" },
-		{ value: "post_new_comment", label: "帖子新评论提醒" },
-		{ value: "comment_new_reply", label: "评论新回复提醒" },
-	] as const;
+let loading = true;
+let refreshing = false;
+let status = "";
+let currentUser: ForumUser | null = null;
+let stats: AdminStats | null = null;
+let settings: ForumAdminSettings = { ...defaultSettings };
+let users: ForumUser[] = [];
+let categories: ForumCategory[] = [];
+const emailTemplateOptions = [
+	{ value: "smtp_test", label: "SMTP 测试邮件" },
+	{ value: "reset_password", label: "密码重置邮件" },
+	{ value: "change_email_confirm", label: "更换邮箱确认邮件" },
+	{ value: "register_verify", label: "注册验证邮件" },
+	{ value: "admin_resend_verify", label: "后台重发验证邮件" },
+	{ value: "admin_avatar_updated", label: "后台头像更新通知" },
+	{ value: "admin_username_updated", label: "后台用户名更新通知" },
+	{ value: "admin_manual_verified", label: "后台手动验证通知" },
+	{ value: "admin_account_deleted", label: "后台删号通知" },
+	{ value: "post_new_comment", label: "帖子新评论提醒" },
+	{ value: "comment_new_reply", label: "评论新回复提醒" },
+] as const;
 
-	let emailResults: AdminEmailTestResult[] = [];
-	let newCategoryName = "";
-	let userSearchQuery = "";
-	let userSearchSubmitting = false;
-	let emailTestTo = "";
-	let emailTestTemplates = emailTemplateOptions.map((item) => item.value);
-	let emailTesting = false;
-	let editingCategoryId = "";
-	let editingCategoryName = "";
-	let editingUserId = "";
-	let savingUserId = "";
-	let editingUserForm = {
+let emailResults: AdminEmailTestResult[] = [];
+let newCategoryName = "";
+let userSearchQuery = "";
+let userSearchSubmitting = false;
+let emailTestTo = "";
+let emailTestTemplates = emailTemplateOptions.map((item) => item.value);
+let emailTesting = false;
+let editingCategoryId = "";
+let editingCategoryName = "";
+let editingUserId = "";
+let savingUserId = "";
+let editingUserForm = {
+	username: "",
+	email: "",
+	avatarUrl: "",
+	password: "",
+};
+let editingUserOriginal = {
+	username: "",
+	email: "",
+	avatarUrl: "",
+};
+let userActionBusyId = "";
+let userActionType = "";
+let storageScanning = false;
+let storageCleaning = false;
+let storageGcResult: AdminStorageGcScanResult | null = null;
+let isAdmin = false;
+let currentBaseUrl = "";
+let hasToken = false;
+let articleNotificationsCount = 0;
+
+async function loadSession() {
+	currentBaseUrl = "";
+	hasToken = Boolean(forumAuth.getToken());
+	forumEnv.baseUrl.subscribe((value) => {
+		currentBaseUrl = value;
+	})();
+	const session = await getSession();
+	currentUser = session.user;
+}
+
+async function refreshData(showLoading = false) {
+	if (showLoading) {
+		loading = true;
+	} else {
+		refreshing = true;
+	}
+	status = "";
+	try {
+		const normalizedUserSearch = userSearchQuery.trim();
+		const [
+			nextStats,
+			nextSettings,
+			nextUsers,
+			nextCategories,
+			nextArticleCount,
+		] = await Promise.all([
+			getAdminStats(),
+			getAdminSettings(),
+			getAdminUsers(normalizedUserSearch),
+			getAdminCategories(),
+			getArticleNotificationsCount(),
+		]);
+		isAdmin = true;
+		stats = nextStats;
+		settings = nextSettings;
+		users = nextUsers;
+		categories = nextCategories;
+		articleNotificationsCount = nextArticleCount.count;
+	} catch (error) {
+		isAdmin = false;
+		status = error instanceof Error ? error.message : "管理台数据加载失败。";
+	} finally {
+		loading = false;
+		refreshing = false;
+	}
+}
+
+async function submitUserSearch() {
+	if (loading || refreshing || userSearchSubmitting) {
+		return;
+	}
+	userSearchSubmitting = true;
+	status = userSearchQuery.trim() ? "正在搜索用户..." : "正在加载全部用户...";
+	try {
+		await refreshData();
+	} finally {
+		userSearchSubmitting = false;
+	}
+}
+
+function resetUserSearch() {
+	if (!userSearchQuery) {
+		return;
+	}
+	userSearchQuery = "";
+	void submitUserSearch();
+}
+
+async function saveSettingsAction() {
+	status = "正在保存设置...";
+	try {
+		await saveAdminSettings(settings);
+		status = "";
+		emitSuccessToast("站点设置", "站点设置已保存。");
+	} catch (error) {
+		status = error instanceof Error ? error.message : "站点设置保存失败。";
+		emitErrorToast("站点设置", status);
+	}
+}
+
+async function createCategoryAction() {
+	if (!newCategoryName.trim()) return;
+	status = "正在添加分类...";
+	try {
+		await createAdminCategory(newCategoryName.trim());
+		newCategoryName = "";
+		await refreshData();
+		status = "分类已添加。";
+	} catch (error) {
+		status = error instanceof Error ? error.message : "分类添加失败。";
+	}
+}
+
+async function saveCategoryAction(id: string) {
+	if (!editingCategoryName.trim()) return;
+	status = "正在更新分类...";
+	try {
+		await updateAdminCategory(id, editingCategoryName.trim());
+		editingCategoryId = "";
+		editingCategoryName = "";
+		await refreshData();
+		status = "分类已更新。";
+	} catch (error) {
+		status = error instanceof Error ? error.message : "分类更新失败。";
+	}
+}
+
+async function deleteCategoryAction(id: string) {
+	if (!window.confirm("确定要删除这个分类吗？")) return;
+	status = "正在删除分类...";
+	try {
+		await deleteAdminCategory(id);
+		await refreshData();
+		status = "分类已删除。";
+	} catch (error) {
+		status = error instanceof Error ? error.message : "分类删除失败。";
+	}
+}
+
+function toggleAllEmailTemplates(checked: boolean) {
+	emailTestTemplates = checked
+		? emailTemplateOptions.map((item) => item.value)
+		: [];
+}
+
+function isAllEmailTemplatesSelected() {
+	return emailTestTemplates.length === emailTemplateOptions.length;
+}
+
+async function sendEmailTestAction() {
+	if (!emailTestTo.trim() || emailTesting || emailTestTemplates.length === 0)
+		return;
+	emailTesting = true;
+	status = isAllEmailTemplatesSelected()
+		? "正在测试全部邮件模板..."
+		: `正在发送 ${emailTestTemplates.length} 个测试模板...`;
+	try {
+		if (isAllEmailTemplatesSelected()) {
+			emailResults = await sendAdminTestEmail({
+				to: emailTestTo.trim(),
+				template: "all",
+			});
+		} else {
+			const resultGroups = await Promise.all(
+				emailTestTemplates.map((template) =>
+					sendAdminTestEmail({
+						to: emailTestTo.trim(),
+						template,
+					}),
+				),
+			);
+			emailResults = resultGroups.flat();
+		}
+		status =
+			emailResults.length > 0
+				? "测试邮件已提交。"
+				: "请求已提交，但后端未返回详细结果。";
+	} catch (error) {
+		emailResults = [];
+		status = error instanceof Error ? error.message : "测试邮件发送失败。";
+	} finally {
+		emailTesting = false;
+	}
+}
+
+function isEditingUser(userId: string) {
+	return editingUserId === userId;
+}
+
+function startEditUser(user: ForumUser) {
+	if (savingUserId) return;
+	editingUserId = user.id;
+	editingUserForm = {
+		username: user.username || "",
+		email: user.email || "",
+		avatarUrl: user.avatarUrl || "",
+		password: "",
+	};
+	editingUserOriginal = {
+		username: (user.username || "").trim(),
+		email: (user.email || "").trim(),
+		avatarUrl: user.avatarUrl || "",
+	};
+}
+
+function cancelEditUser(force = false) {
+	if (savingUserId && !force) return;
+	editingUserId = "";
+	editingUserForm = {
 		username: "",
 		email: "",
 		avatarUrl: "",
 		password: "",
 	};
-	let editingUserOriginal = {
+	editingUserOriginal = {
 		username: "",
 		email: "",
 		avatarUrl: "",
 	};
-	let userActionBusyId = "";
-	let userActionType = "";
-	let storageScanning = false;
-	let storageCleaning = false;
-	let storageGcResult: AdminStorageGcScanResult | null = null;
-	let isAdmin = false;
-	let currentBaseUrl = "";
-	let hasToken = false;
+}
 
-	async function loadSession() {
-		currentBaseUrl = "";
-		hasToken = Boolean(forumAuth.getToken());
-		forumEnv.baseUrl.subscribe((value) => {
-			currentBaseUrl = value;
-		})();
-		const session = await getSession();
-		currentUser = session.user;
+function hasUserActionConflict(userId: string) {
+	return (
+		Boolean(userActionBusyId || savingUserId) ||
+		(Boolean(editingUserId) && editingUserId !== userId)
+	);
+}
+
+function isValidEmail(email: string) {
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function hasInvisibleUnicode(value: string) {
+	return /[\u00A0\u1680\u180E\u2000-\u200F\u2028-\u202F\u205F-\u206F\u3000\uFEFF]/u.test(
+		value,
+	);
+}
+
+function hasControlCharacter(value: string) {
+	return /[\u0000-\u001F\u007F-\u009F]/u.test(value);
+}
+
+function validateUserEditForm() {
+	const username = editingUserForm.username.trim();
+	const email = editingUserForm.email.trim();
+	const avatarUrl = editingUserForm.avatarUrl.trim();
+	const password = editingUserForm.password;
+
+	if (!username) {
+		return "Username cannot be empty";
+	}
+	if (username.length > 20) {
+		return "Username too long (Max 20 chars)";
+	}
+	if (hasInvisibleUnicode(username)) {
+		return "Username contains invalid invisible characters";
+	}
+	if (hasControlCharacter(username)) {
+		return "Username contains invalid control characters";
+	}
+	if (email.length > 50) {
+		return "Email too long (Max 50 chars)";
+	}
+	if (email && !isValidEmail(email)) {
+		return "请输入有效的邮箱地址。";
+	}
+	if (password && (password.length < 8 || password.length > 16)) {
+		return "Password must be 8-16 characters";
 	}
 
-	async function refreshData(showLoading = false) {
-		if (showLoading) {
-			loading = true;
-		} else {
-			refreshing = true;
-		}
-		status = "";
-		try {
-			const normalizedUserSearch = userSearchQuery.trim();
-			const [nextStats, nextSettings, nextUsers, nextCategories] = await Promise.all([
-				getAdminStats(),
-				getAdminSettings(),
-				getAdminUsers(normalizedUserSearch),
-				getAdminCategories(),
-			]);
-			isAdmin = true;
-			stats = nextStats;
-			settings = nextSettings;
-			users = nextUsers;
-			categories = nextCategories;
-		} catch (error) {
-			isAdmin = false;
-			status = error instanceof Error ? error.message : "管理台数据加载失败。";
-		} finally {
-			loading = false;
-			refreshing = false;
-		}
+	return "";
+}
+
+async function saveUserAction(userId: string) {
+	if (!isEditingUser(userId) || savingUserId) return;
+	const username = editingUserForm.username.trim();
+	const email = editingUserForm.email.trim();
+	const avatarUrl = editingUserForm.avatarUrl.trim();
+	const password = editingUserForm.password;
+	const validationError = validateUserEditForm();
+
+	if (validationError) {
+		status = validationError;
+		return;
 	}
 
-	async function submitUserSearch() {
-		if (loading || refreshing || userSearchSubmitting) {
-			return;
-		}
-		userSearchSubmitting = true;
-		status = userSearchQuery.trim() ? "正在搜索用户..." : "正在加载全部用户...";
-		try {
-			await refreshData();
-		} finally {
-			userSearchSubmitting = false;
-		}
+	const payload: AdminUserUpdatePayload = {};
+	if (username !== editingUserOriginal.username) {
+		payload.username = username;
+	}
+	if (email !== editingUserOriginal.email) {
+		payload.email = email;
+	}
+	if (avatarUrl !== editingUserOriginal.avatarUrl) {
+		payload.avatarUrl = avatarUrl;
+	}
+	if (password) {
+		payload.password = password;
 	}
 
-	function resetUserSearch() {
-		if (!userSearchQuery) {
-			return;
-		}
-		userSearchQuery = "";
-		void submitUserSearch();
+	if (Object.keys(payload).length === 0) {
+		status = "没有需要保存的更改。";
+		return;
 	}
 
-	async function saveSettingsAction() {
-		status = "正在保存设置...";
-		try {
-			await saveAdminSettings(settings);
-			status = "";
-			emitSuccessToast("站点设置", "站点设置已保存。");
-		} catch (error) {
-			status = error instanceof Error ? error.message : "站点设置保存失败。";
-			emitErrorToast("站点设置", status);
-		}
+	savingUserId = userId;
+	status = "正在保存用户资料...";
+	try {
+		const result = await updateAdminUser(userId, payload);
+		cancelEditUser(true);
+		await refreshData();
+		status = result.message || "用户资料已更新。";
+	} catch (error) {
+		status = error instanceof Error ? error.message : "用户资料更新失败。";
+	} finally {
+		savingUserId = "";
 	}
+}
 
-	async function createCategoryAction() {
-		if (!newCategoryName.trim()) return;
-		status = "正在添加分类...";
-		try {
-			await createAdminCategory(newCategoryName.trim());
-			newCategoryName = "";
-			await refreshData();
-			status = "分类已添加。";
-		} catch (error) {
-			status = error instanceof Error ? error.message : "分类添加失败。";
-		}
+async function runUserAction(
+	userId: string,
+	action: "verify" | "resend" | "delete",
+) {
+	if (userActionBusyId || savingUserId) return;
+	if (
+		action === "delete" &&
+		!window.confirm("确定要删除这个用户吗？此操作不可撤销。")
+	) {
+		return;
 	}
-
-	async function saveCategoryAction(id: string) {
-		if (!editingCategoryName.trim()) return;
-		status = "正在更新分类...";
-		try {
-			await updateAdminCategory(id, editingCategoryName.trim());
-			editingCategoryId = "";
-			editingCategoryName = "";
-			await refreshData();
-			status = "分类已更新。";
-		} catch (error) {
-			status = error instanceof Error ? error.message : "分类更新失败。";
-		}
+	userActionBusyId = userId;
+	userActionType = action;
+	if (isEditingUser(userId)) {
+		cancelEditUser(true);
 	}
-
-	async function deleteCategoryAction(id: string) {
-		if (!window.confirm("确定要删除这个分类吗？")) return;
-		status = "正在删除分类...";
-		try {
-			await deleteAdminCategory(id);
-			await refreshData();
-			status = "分类已删除。";
-		} catch (error) {
-			status = error instanceof Error ? error.message : "分类删除失败。";
-		}
+	status =
+		action === "verify"
+			? "正在手动通过验证..."
+			: action === "resend"
+				? "正在重发验证邮件..."
+				: "正在删除用户...";
+	try {
+		const result =
+			action === "verify"
+				? await verifyAdminUser(userId)
+				: action === "resend"
+					? await resendAdminUserVerification(userId)
+					: await deleteAdminUser(userId);
+		await refreshData();
+		status =
+			result.message ||
+			(action === "verify"
+				? "用户已手动验证。"
+				: action === "resend"
+					? "验证邮件已重新发送。"
+					: "用户已删除。");
+	} catch (error) {
+		status = error instanceof Error ? error.message : "用户操作失败。";
+	} finally {
+		userActionBusyId = "";
+		userActionType = "";
 	}
+}
 
-	function toggleAllEmailTemplates(checked: boolean) {
-		emailTestTemplates = checked ? emailTemplateOptions.map((item) => item.value) : [];
+function resolveGcItems() {
+	return storageGcResult?.orphans || [];
+}
+
+function resolveGcCount() {
+	return storageGcResult?.orphaned_files ?? resolveGcItems().length;
+}
+
+async function scanStorageGcAction() {
+	if (storageScanning) return;
+	storageScanning = true;
+	status = "正在分析孤儿文件...";
+	try {
+		storageGcResult = await scanAdminStorageGc();
+		status =
+			resolveGcCount() > 0
+				? `分析完成，发现 ${resolveGcCount()} 个孤儿文件。`
+				: "分析完成，未发现可清理的孤儿文件。";
+	} catch (error) {
+		storageGcResult = null;
+		status = error instanceof Error ? error.message : "孤儿文件分析失败。";
+	} finally {
+		storageScanning = false;
 	}
+}
 
-	function isAllEmailTemplatesSelected() {
-		return emailTestTemplates.length === emailTemplateOptions.length;
+async function cleanupStorageGcAction() {
+	if (storageCleaning || !storageGcResult) return;
+	const count = resolveGcCount();
+	const orphans = resolveGcItems();
+	if (!count || orphans.length === 0) return;
+	if (
+		!window.confirm(`确定要清理这 ${count} 个孤儿文件吗？删除任务会异步执行。`)
+	) {
+		return;
 	}
-
-	async function sendEmailTestAction() {
-		if (!emailTestTo.trim() || emailTesting || emailTestTemplates.length === 0) return;
-		emailTesting = true;
-		status = isAllEmailTemplatesSelected() ? "正在测试全部邮件模板..." : `正在发送 ${emailTestTemplates.length} 个测试模板...`;
-		try {
-			if (isAllEmailTemplatesSelected()) {
-				emailResults = await sendAdminTestEmail({
-					to: emailTestTo.trim(),
-					template: "all",
-				});
-			} else {
-				const resultGroups = await Promise.all(
-					emailTestTemplates.map((template) =>
-						sendAdminTestEmail({
-							to: emailTestTo.trim(),
-							template,
-						}),
-					),
-				);
-				emailResults = resultGroups.flat();
-			}
-			status = emailResults.length > 0 ? "测试邮件已提交。" : "请求已提交，但后端未返回详细结果。";
-		} catch (error) {
-			emailResults = [];
-			status = error instanceof Error ? error.message : "测试邮件发送失败。";
-		} finally {
-			emailTesting = false;
-		}
+	storageCleaning = true;
+	status = "正在提交孤儿文件删除任务...";
+	try {
+		const result = await cleanupAdminStorageGc(orphans);
+		status = result.message || `已提交 ${count} 个孤儿文件的删除任务。`;
+	} catch (error) {
+		status = error instanceof Error ? error.message : "孤儿文件清理失败。";
+	} finally {
+		storageCleaning = false;
 	}
+}
 
-	function isEditingUser(userId: string) {
-		return editingUserId === userId;
-	}
-
-	function startEditUser(user: ForumUser) {
-		if (savingUserId) return;
-		editingUserId = user.id;
-		editingUserForm = {
-			username: user.username || "",
-			email: user.email || "",
-			avatarUrl: user.avatarUrl || "",
-			password: "",
-		};
-		editingUserOriginal = {
-			username: (user.username || "").trim(),
-			email: (user.email || "").trim(),
-			avatarUrl: user.avatarUrl || "",
-		};
-	}
-
-	function cancelEditUser(force = false) {
-		if (savingUserId && !force) return;
-		editingUserId = "";
-		editingUserForm = {
-			username: "",
-			email: "",
-			avatarUrl: "",
-			password: "",
-		};
-		editingUserOriginal = {
-			username: "",
-			email: "",
-			avatarUrl: "",
-		};
-	}
-
-	function hasUserActionConflict(userId: string) {
-		return Boolean(userActionBusyId || savingUserId) || (Boolean(editingUserId) && editingUserId !== userId);
-	}
-
-	function isValidEmail(email: string) {
-		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-	}
-
-	function hasInvisibleUnicode(value: string) {
-		return /[\u00A0\u1680\u180E\u2000-\u200F\u2028-\u202F\u205F-\u206F\u3000\uFEFF]/u.test(value);
-	}
-
-	function hasControlCharacter(value: string) {
-		return /[\u0000-\u001F\u007F-\u009F]/u.test(value);
-	}
-
-	function validateUserEditForm() {
-		const username = editingUserForm.username.trim();
-		const email = editingUserForm.email.trim();
-		const avatarUrl = editingUserForm.avatarUrl.trim();
-		const password = editingUserForm.password;
-
-		if (!username) {
-			return "Username cannot be empty";
-		}
-		if (username.length > 20) {
-			return "Username too long (Max 20 chars)";
-		}
-		if (hasInvisibleUnicode(username)) {
-			return "Username contains invalid invisible characters";
-		}
-		if (hasControlCharacter(username)) {
-			return "Username contains invalid control characters";
-		}
-		if (email.length > 50) {
-			return "Email too long (Max 50 chars)";
-		}
-		if (email && !isValidEmail(email)) {
-			return "请输入有效的邮箱地址。";
-		}
-		if (password && (password.length < 8 || password.length > 16)) {
-			return "Password must be 8-16 characters";
-		}
-
-		return "";
-	}
-
-	async function saveUserAction(userId: string) {
-		if (!isEditingUser(userId) || savingUserId) return;
-		const username = editingUserForm.username.trim();
-		const email = editingUserForm.email.trim();
-		const avatarUrl = editingUserForm.avatarUrl.trim();
-		const password = editingUserForm.password;
-		const validationError = validateUserEditForm();
-
-		if (validationError) {
-			status = validationError;
-			return;
-		}
-
-		const payload: AdminUserUpdatePayload = {};
-		if (username !== editingUserOriginal.username) {
-			payload.username = username;
-		}
-		if (email !== editingUserOriginal.email) {
-			payload.email = email;
-		}
-		if (avatarUrl !== editingUserOriginal.avatarUrl) {
-			payload.avatarUrl = avatarUrl;
-		}
-		if (password) {
-			payload.password = password;
-		}
-
-		if (Object.keys(payload).length === 0) {
-			status = "没有需要保存的更改。";
-			return;
-		}
-
-		savingUserId = userId;
-		status = "正在保存用户资料...";
-		try {
-			const result = await updateAdminUser(userId, payload);
-			cancelEditUser(true);
-			await refreshData();
-			status = result.message || "用户资料已更新。";
-		} catch (error) {
-			status = error instanceof Error ? error.message : "用户资料更新失败。";
-		} finally {
-			savingUserId = "";
-		}
-	}
-
-	async function runUserAction(userId: string, action: "verify" | "resend" | "delete") {
-		if (userActionBusyId || savingUserId) return;
-		if (action === "delete" && !window.confirm("确定要删除这个用户吗？此操作不可撤销。")) {
-			return;
-		}
-		userActionBusyId = userId;
-		userActionType = action;
-		if (isEditingUser(userId)) {
-			cancelEditUser(true);
-		}
-		status = action === "verify" ? "正在手动通过验证..." : action === "resend" ? "正在重发验证邮件..." : "正在删除用户...";
-		try {
-			const result =
-				action === "verify"
-					? await verifyAdminUser(userId)
-					: action === "resend"
-						? await resendAdminUserVerification(userId)
-						: await deleteAdminUser(userId);
-			await refreshData();
-			status = result.message || (action === "verify" ? "用户已手动验证。" : action === "resend" ? "验证邮件已重新发送。" : "用户已删除。");
-		} catch (error) {
-			status = error instanceof Error ? error.message : "用户操作失败。";
-		} finally {
-			userActionBusyId = "";
-			userActionType = "";
-		}
-	}
-
-	function resolveGcItems() {
-		return storageGcResult?.orphans || [];
-	}
-
-	function resolveGcCount() {
-		return storageGcResult?.orphaned_files ?? resolveGcItems().length;
-	}
-
-	async function scanStorageGcAction() {
-		if (storageScanning) return;
-		storageScanning = true;
-		status = "正在分析孤儿文件...";
-		try {
-			storageGcResult = await scanAdminStorageGc();
-			status = resolveGcCount() > 0 ? `分析完成，发现 ${resolveGcCount()} 个孤儿文件。` : "分析完成，未发现可清理的孤儿文件。";
-		} catch (error) {
-			storageGcResult = null;
-			status = error instanceof Error ? error.message : "孤儿文件分析失败。";
-		} finally {
-			storageScanning = false;
-		}
-	}
-
-	async function cleanupStorageGcAction() {
-		if (storageCleaning || !storageGcResult) return;
-		const count = resolveGcCount();
-		const orphans = resolveGcItems();
-		if (!count || orphans.length === 0) return;
-		if (!window.confirm(`确定要清理这 ${count} 个孤儿文件吗？删除任务会异步执行。`)) {
-			return;
-		}
-		storageCleaning = true;
-		status = "正在提交孤儿文件删除任务...";
-		try {
-			const result = await cleanupAdminStorageGc(orphans);
-			status = result.message || `已提交 ${count} 个孤儿文件的删除任务。`;
-		} catch (error) {
-			status = error instanceof Error ? error.message : "孤儿文件清理失败。";
-		} finally {
-			storageCleaning = false;
-		}
-	}
-
-	onMount(async () => {
-		const unsubscribe = forumEnv.baseUrl.subscribe((value) => {
-			currentBaseUrl = value;
-		});
-		hasToken = Boolean(forumAuth.getToken());
-		try {
-			await loadSession();
-			hasToken = Boolean(forumAuth.getToken());
-			await refreshData(true);
-		} catch (error) {
-			status = error instanceof Error ? error.message : "会话加载失败。";
-			loading = false;
-		}
-		return () => unsubscribe();
+onMount(async () => {
+	const unsubscribe = forumEnv.baseUrl.subscribe((value) => {
+		currentBaseUrl = value;
 	});
+	hasToken = Boolean(forumAuth.getToken());
+	try {
+		await loadSession();
+		hasToken = Boolean(forumAuth.getToken());
+		await refreshData(true);
+	} catch (error) {
+		status = error instanceof Error ? error.message : "会话加载失败。";
+		loading = false;
+	}
+	return () => unsubscribe();
+});
 </script>
 
 <div class="space-y-6">
@@ -503,7 +548,7 @@
 				</div>
 			</div>
 		{:else}
-			<div class="grid gap-4 md:grid-cols-3">
+			<div class="grid gap-4 md:grid-cols-4">
 				<div class="rounded-xl border border-white/10 bg-white/5 p-5">
 					<div class="text-sm text-white/40 mb-1">用户总数</div>
 					<div class="text-3xl font-bold text-white">{stats?.users ?? 0}</div>
@@ -515,6 +560,10 @@
 				<div class="rounded-xl border border-white/10 bg-white/5 p-5">
 					<div class="text-sm text-white/40 mb-1">评论总数</div>
 					<div class="text-3xl font-bold text-white">{stats?.comments ?? 0}</div>
+				</div>
+				<div class="rounded-xl border border-white/10 bg-white/5 p-5">
+					<div class="text-sm text-white/40 mb-1">文章订阅人数</div>
+					<div class="text-3xl font-bold text-white">{articleNotificationsCount}</div>
 				</div>
 			</div>
 
