@@ -47,25 +47,28 @@ export type SSEEventHandler = (payload: Record<string, unknown>) => void;
 
 export class ForumSSE {
 	private eventSource: EventSource | null = null;
-	private baseUrl: string;
 	private reconnectAttempts = 0;
 	private maxReconnectAttempts = 5;
 	private reconnectDelay = 1000;
 	private eventHandlers: Map<string, SSEEventHandler[]> = new Map();
 	private currentPostId: string | null = null;
 	private isConnecting = false;
-	private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-
-	constructor() {
-		this.baseUrl = this.buildBaseUrl();
-	}
-
-	private buildBaseUrl(): string {
-		const baseUrl = get(forumEnv.baseUrl);
-		return baseUrl;
-	}
+	private lastBaseUrl: string | null = null;
 
 	connect(postId?: string): void {
+		const baseUrl = get(forumEnv.baseUrl);
+
+		if (this.lastBaseUrl && this.lastBaseUrl !== baseUrl) {
+			console.log("[SSE] Base URL changed, disconnecting old connection");
+			const savedPostId = this.currentPostId;
+			this.eventSource?.close();
+			this.eventSource = null;
+			this.lastBaseUrl = baseUrl;
+			this.currentPostId = savedPostId;
+		}
+
+		this.lastBaseUrl = baseUrl;
+
 		if (
 			this.isConnecting ||
 			(this.eventSource && this.eventSource.readyState === EventSource.OPEN)
@@ -78,8 +81,8 @@ export class ForumSSE {
 		this.currentPostId = postId || null;
 
 		const url = postId
-			? `${this.baseUrl}/api/sse?postId=${encodeURIComponent(postId)}`
-			: `${this.baseUrl}/api/sse`;
+			? `${baseUrl}/api/sse?postId=${encodeURIComponent(postId)}`
+			: `${baseUrl}/api/sse`;
 
 		console.log("[SSE] Connecting to:", url);
 
@@ -179,10 +182,6 @@ export class ForumSSE {
 		this.isConnecting = false;
 		this.reconnectAttempts = 0;
 		this.currentPostId = null;
-		if (this.heartbeatTimer) {
-			clearInterval(this.heartbeatTimer);
-			this.heartbeatTimer = null;
-		}
 	}
 
 	on(event: string, handler: SSEEventHandler): void {
