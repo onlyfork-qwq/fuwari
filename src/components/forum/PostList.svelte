@@ -1,4 +1,5 @@
 <script lang="ts">
+import ForumLoading from "@/components/forum/ForumLoading.svelte";
 import type { ForumPostSummary } from "@/forum/types/post";
 import { formatForumDateTime } from "@/utils/date-utils";
 import Icon from "@iconify/svelte";
@@ -38,10 +39,7 @@ function goToUser(userId?: string, event?: MouseEvent | KeyboardEvent) {
 
 <div class="space-y-4">
 	{#if loading}
-		<div class="card-base p-5 text-white/50 flex items-center gap-2">
-			<Icon icon="svg-spinners:ring-resize" class="text-xl" />
-			正在加载帖子...
-		</div>
+		<ForumLoading text="正在加载帖子..." fullHeight={false} />
 	{:else if safePosts.length === 0}
 		<div class="card-base p-5 text-white/50">{emptyText}</div>
 	{:else}

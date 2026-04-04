@@ -1,5 +1,6 @@
 <script lang="ts">
 import CommentList from "@/components/forum/CommentList.svelte";
+import ForumLoading from "@/components/forum/ForumLoading.svelte";
 import ForumMarkdownContent from "@/components/forum/ForumMarkdownContent.svelte";
 import ForumMarkdownEditor from "@/components/forum/ForumMarkdownEditor.svelte";
 import { deleteAdminPost } from "@/forum/api/admin";
@@ -471,7 +472,7 @@ onMount(() => {
 </script>
 
 {#if loading}
-	<div class="card-base p-6 text-white/50">正在加载帖子详情...</div>
+	<ForumLoading text="正在加载帖子详情..." />
 {:else if !post}
 	<div class="card-base p-6 text-white/50 space-y-2">
 		{#if loadErrorKind === "not-found"}
