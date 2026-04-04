@@ -1,5 +1,4 @@
 <script lang="ts">
-import ForumLoading from "@/components/forum/ForumLoading.svelte";
 import type { ForumPostSummary } from "@/forum/types/post";
 import { formatForumDateTime } from "@/utils/date-utils";
 import Icon from "@iconify/svelte";
@@ -39,12 +38,45 @@ function goToUser(userId?: string, event?: MouseEvent | KeyboardEvent) {
 
 <div class="space-y-4">
 	{#if loading}
-		<ForumLoading text="正在加载帖子..." fullHeight={false} />
+		{#each Array(3) as _, i}
+			<div class="card-base p-5 animate-pulse">
+				<div class="mb-4 flex items-start justify-between gap-4">
+					<div class="min-w-0 flex-1">
+						<div class="mb-3 flex items-center gap-2">
+							<div class="h-6 w-48 rounded bg-white/10"></div>
+						</div>
+						<div class="mb-2 h-4 w-full rounded bg-white/8"></div>
+						<div class="h-4 w-3/4 rounded bg-white/8"></div>
+					</div>
+					<div class="h-6 w-16 shrink-0 rounded-full bg-white/8"></div>
+				</div>
+				<div class="mb-4 h-40 w-full rounded-2xl bg-white/5"></div>
+				<div class="mb-4 flex items-center gap-3">
+					<div class="h-9 w-9 rounded-full bg-white/8"></div>
+					<div class="min-w-0 flex-1">
+						<div class="mb-1 h-4 w-24 rounded bg-white/8"></div>
+						<div class="h-3 w-32 rounded bg-white/5"></div>
+					</div>
+				</div>
+				<div class="flex items-center gap-4">
+					<div class="h-4 w-16 rounded bg-white/5"></div>
+					<div class="h-4 w-16 rounded bg-white/5"></div>
+					<div class="h-4 w-16 rounded bg-white/5"></div>
+				</div>
+			</div>
+		{/each}
 	{:else if safePosts.length === 0}
 		<div class="card-base p-5 text-white/50">{emptyText}</div>
 	{:else}
-		{#each safePosts as post}
-			<div class="group card-base card-hover block w-full cursor-pointer p-5 text-white/90 no-underline" role="link" tabindex="0" on:click={() => goToPost(post.id)} on:keydown={(event) => (event.key === "Enter" || event.key === " ") && goToPost(post.id)}>
+		{#each safePosts as post, i}
+			<div 
+				class="group card-base card-hover block w-full cursor-pointer p-5 text-white/90 no-underline transition-opacity duration-200" 
+				style="animation: fade-in-up 200ms {i * 50}ms forwards; opacity: 0;"
+				role="link" 
+				tabindex="0" 
+				on:click={() => goToPost(post.id)} 
+				on:keydown={(event) => (event.key === "Enter" || event.key === " ") && goToPost(post.id)}
+			>
 				<div class="mb-4 flex items-start justify-between gap-4">
 					<div class="min-w-0 flex-1">
 						<div class="mb-2 flex flex-wrap items-center gap-2">

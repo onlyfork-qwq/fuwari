@@ -1,8 +1,8 @@
 <script lang="ts">
 import CommentList from "@/components/forum/CommentList.svelte";
-import ForumLoading from "@/components/forum/ForumLoading.svelte";
 import ForumMarkdownContent from "@/components/forum/ForumMarkdownContent.svelte";
 import ForumMarkdownEditor from "@/components/forum/ForumMarkdownEditor.svelte";
+import ForumSkeleton from "@/components/forum/ForumSkeleton.svelte";
 import { deleteAdminPost } from "@/forum/api/admin";
 import { getSession } from "@/forum/api/auth";
 import {
@@ -472,7 +472,7 @@ onMount(() => {
 </script>
 
 {#if loading}
-	<ForumLoading text="正在加载帖子详情..." />
+	<ForumSkeleton type="post" />
 {:else if !post}
 	<div class="card-base p-6 text-white/50 space-y-2">
 		{#if loadErrorKind === "not-found"}
@@ -487,7 +487,7 @@ onMount(() => {
 		{/if}
 	</div>
 {:else}
-	<div class="space-y-5">
+	<div class="space-y-5 onload-animation" style="animation-delay: 0ms;">
 		<article class="card-base border border-white/10 p-6 md:p-8">
 			<div class="mb-6 flex flex-col gap-4 border-b border-white/10 pb-6">
 				<div class="flex flex-wrap items-center justify-between gap-3 text-xs text-white/40">

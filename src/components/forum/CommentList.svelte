@@ -78,9 +78,22 @@ $: commentTree = buildCommentTree(comments);
 
 <div class="space-y-3">
 	{#if loading}
-		<div class="card-base flex items-center gap-2 p-4 text-white/50">
-			<Icon icon="svg-spinners:ring-resize" class="text-xl" />
-			正在加载评论...
+		<div class="space-y-3">
+			{#each Array(3) as _, i}
+				<div class="card-base border border-white/10 p-4 animate-pulse" style="animation-delay: {i * 100}ms;">
+					<div class="mb-3 flex items-center gap-3">
+						<div class="h-10 w-10 rounded-full bg-white/8"></div>
+						<div class="flex-1">
+							<div class="mb-1 h-4 w-24 rounded bg-white/8"></div>
+							<div class="h-3 w-32 rounded bg-white/5"></div>
+						</div>
+					</div>
+					<div class="space-y-2">
+						<div class="h-4 w-full rounded bg-white/8"></div>
+						<div class="h-4 w-3/4 rounded bg-white/8"></div>
+					</div>
+				</div>
+			{/each}
 		</div>
 	{:else if comments.length === 0}
 		<div class="card-base p-4 text-white/50">暂无评论，来发表第一条吧。</div>
@@ -106,19 +119,20 @@ $: commentTree = buildCommentTree(comments);
 				</div>
 			</div>
 			<div class="space-y-3">
-				{#each commentTree as comment (comment.id)}
-				<CommentItem
-					{comment}
-					{activeReplyParentId}
-					{canReply}
-					{onReplyToggle}
-					{onReplyContentChange}
-					{onReplySubmit}
-					{onReplyEscape}
-					{onCommentPatched}
-					{currentUser}
-					onCommentDeleted={onCommentDeleted}
-				>
+				{#each commentTree as comment, i (comment.id)}
+				<div style="animation: fade-in-up 200ms {i * 50}ms forwards; opacity: 0;">
+					<CommentItem
+						{comment}
+						{activeReplyParentId}
+						{canReply}
+						{onReplyToggle}
+						{onReplyContentChange}
+						{onReplySubmit}
+						{onReplyEscape}
+						{onCommentPatched}
+						{currentUser}
+						onCommentDeleted={onCommentDeleted}
+					>
 						<div slot="reply-editor" class="space-y-3">
 							<ForumMarkdownEditor
 								bind:value={replyContent}
@@ -140,6 +154,7 @@ $: commentTree = buildCommentTree(comments);
 							</div>
 						</div>
 					</CommentItem>
+				</div>
 				{/each}
 			</div>
 		</div>
