@@ -16,3 +16,169 @@ const title = "零宽短链生成器";
 		<ShortLinkGenerator client:load />
 	</div>
 </MainGridLayout>
+
+<!-- 确认跳转遮罩层 -->
+<div id="redirect-overlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+	<div class="mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-[var(--card-bg)] p-6 shadow-2xl">
+		<div class="mb-4 flex items-center gap-3">
+			<div class="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20">
+				<svg class="h-6 w-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+				</svg>
+			</div>
+			<div>
+				<h2 class="text-lg font-bold text-90">即将跳转</h2>
+				<p class="text-sm text-50">请确认目标地址是否安全</p>
+			</div>
+		</div>
+
+		<div class="mb-4 rounded-xl border border-white/10 bg-black/20 p-4">
+			<p class="mb-2 text-xs text-50">目标地址</p>
+			<p id="target-url-display" class="break-all text-sm font-mono text-90"></p>
+		</div>
+
+		<div class="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+			<p class="text-xs text-amber-200">
+				⚠️ 请仔细检查目标地址，确保是您信任的网站。如不确定，请取消跳转。
+			</p>
+		</div>
+
+		<div class="flex gap-3">
+			<button
+				id="cancel-btn"
+				class="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-50 transition-all hover:bg-white/5"
+			>
+				取消
+			</button>
+			<a
+				id="confirm-btn"
+				href="#"
+				class="flex-1 rounded-xl bg-[var(--primary)] px-4 py-3 text-center text-sm font-bold text-white shadow-lg shadow-[var(--primary)]/20 transition-all hover:brightness-110"
+			>
+				确认跳转
+			</a>
+		</div>
+	</div>
+</div>
+
+<!-- 解码跳转脚本 -->
+<script>
+	// 零宽字符字母表：ZWSP=0, ZWNJ=1
+	const ZW_CHARS = ['\u200B', '\u200C'];
+
+	/**
+	 * 解码零宽字符编码的 URL
+	 */
+	function decodeUrl(encoded: string): string | null {
+		try {
+			// 提取零宽字符序列
+			const zwSequence = encoded.split('').filter(c => ZW_CHARS.includes(c));
+
+			if (zwSequence.length === 0) {
+				return null;
+			}
+
+			// 转为二进制字符串
+			let binary = '';
+			for (const c of zwSequence) {
+				binary += ZW_CHARS.indexOf(c).toString();
+			}
+
+			// 二进制 → 字节数组
+			const bytes: number[] = [];
+			for (let i = 0; i < binary.length; i += 8) {
+				const byteStr = binary.slice(i, i + 8);
+				if (byteStr.length === 8) {
+					bytes.push(parseInt(byteStr, 2));
+				}
+			}
+
+			// UTF-8 解码
+			return new TextDecoder().decode(new Uint8Array(bytes));
+		} catch (e) {
+			console.error('解码失败:', e);
+			return null;
+		}
+	}
+
+	/**
+	 * 显示确认跳转界面
+	 */
+	function showRedirectConfirm(targetUrl: string) {
+		const overlay = document.getElementById('redirect-overlay');
+		const urlDisplay = document.getElementById('target-url-display');
+		const confirmBtn = document.getElementById('confirm-btn');
+		const cancelBtn = document.getElementById('cancel-btn');
+
+		if (!overlay || !urlDisplay || !confirmBtn || !cancelBtn) return;
+
+		// 显示目标 URL
+		urlDisplay.textContent = targetUrl;
+
+		// 设置确认按钮的跳转链接
+		confirmBtn.href = targetUrl;
+
+		// 显示遮罩层
+		overlay.classList.remove('hidden');
+		overlay.classList.add('flex');
+
+		// 取消按钮点击事件
+		cancelBtn.addEventListener('click', () => {
+			overlay.classList.add('hidden');
+			overlay.classList.remove('flex');
+			// 清除 URL 中的查询参数
+			window.history.replaceState({}, '', '/s/');
+		}, { once: true });
+	}
+
+	/**
+	 * 显示错误提示
+	 */
+	function showError(message: string) {
+		alert(message);
+		// 清除 URL 中的查询参数
+		window.history.replaceState({}, '', '/s/');
+	}
+
+	// 页面加载时检查查询参数
+	function checkRedirect() {
+		const params = new URLSearchParams(window.location.search);
+
+		// 查找以零宽字符作为参数名的参数值
+		let encoded: string | null = null;
+		for (const [key, value] of params) {
+			// 参数名包含零宽字符
+			if (ZW_CHARS.some(c => key.includes(c))) {
+				encoded = value;
+				break;
+			}
+		}
+
+		// 如果没有找到零宽参数，显示生成器页面
+		if (!encoded) {
+			return;
+		}
+
+		// 解码目标 URL
+		const targetUrl = decodeUrl(encoded);
+
+		if (!targetUrl) {
+			showError('解码失败：无效的零宽字符编码');
+			return;
+		}
+
+		// 验证 URL 格式
+		try {
+			new URL(targetUrl);
+		} catch (e) {
+			showError(`解码得到的 URL 格式无效：${targetUrl}`);
+			return;
+		}
+
+		// 显示确认跳转界面
+		showRedirectConfirm(targetUrl);
+	}
+
+	// 页面加载后执行检查
+	document.addEventListener('DOMContentLoaded', checkRedirect);
+</script>
