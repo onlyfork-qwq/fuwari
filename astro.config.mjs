@@ -25,6 +25,7 @@ import { AdmonitionComponent } from "./src/plugins/rehype-component-admonition.m
 import { GithubCardComponent } from "./src/plugins/rehype-component-github-card.mjs";
 import { UrlCardComponent } from "./src/plugins/rehype-component-url-card.mjs";
 import rehypeImageFallback from "./src/plugins/rehype-image-fallback.mjs";
+import { rehypeImgBr } from "./src/plugins/rehype-img-br.mjs";
 import { parseDirectiveNode } from "./src/plugins/remark-directive-rehype.js";
 import { remarkExcerpt } from "./src/plugins/remark-excerpt.js";
 import { remarkGithubAdmonitions } from "./src/plugins/remark-github-admonitions.js";
@@ -180,7 +181,8 @@ export default defineConfig({
 		},
 		"/hnr": {
 			status: 302,
-			destination: "https://subspace.shop/products/lin-pianpian-keychain-the-weeping-swan-ten-days-of-the-citys-fall?_pos=1&_sid=5ba9d94dd&_ss=r",
+			destination:
+				"https://subspace.shop/products/lin-pianpian-keychain-the-weeping-swan-ten-days-of-the-citys-fall?_pos=1&_sid=5ba9d94dd&_ss=r",
 		},
 	},
 	integrations: [
@@ -190,7 +192,12 @@ export default defineConfig({
 		swup({
 			theme: false,
 			animationClass: "transition-swup-",
-			containers: ["#sort-container", "#swup-container", "#toc", "#swup-footer"],
+			containers: [
+				"#sort-container",
+				"#swup-container",
+				"#toc",
+				"#swup-footer",
+			],
 			smoothScrolling: true,
 			cache: false,
 			preload: false,
@@ -268,6 +275,7 @@ export default defineConfig({
 			parseDirectiveNode,
 		],
 		rehypePlugins: [
+			rehypeImgBr,
 			rehypeKatex,
 			rehypeSlug,
 			[rehypeImageFallback, imageFallbackConfig],
