@@ -227,25 +227,25 @@ const bannerOffset =
 				--bg-opacity: var(--bg-opacity);
 			}
 
-			#bg-box {
-				position: fixed;
-				top: 0;
-				left: 0;
-				width: 100%;
-				height: 100%;
-				background-image: none;
-				background-position: var(--bg-position);
-				background-size: var(--bg-size);
-				background-repeat: var(--bg-repeat);
-				background-attachment: var(--bg-attachment);
-				opacity: 0;
-				pointer-events: none;
-				z-index: -1;
-				transition: opacity 0.3s ease-in-out;
+#bg-box {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-image: none;
+			background-position: var(--bg-position);
+			background-size: var(--bg-size);
+			background-repeat: var(--bg-repeat);
+			background-attachment: var(--bg-attachment);
+			opacity: 0;
+			pointer-events: none;
+			z-index: -1;
+			transition: opacity 0.3s ease-in-out, filter 0.5s ease-out;
                 /* Prevent background jump on mobile browsers with dynamic URL bars */
                 will-change: transform;
                 transform: translateZ(0);
-			}
+		}
 			
 			#bg-box.loaded {
 				opacity: calc(var(--bg-opacity) * var(--bg-enable));
